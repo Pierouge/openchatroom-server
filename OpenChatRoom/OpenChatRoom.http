@@ -1,0 +1,6 @@
+@OpenChatRoom_HostAddress = http://localhost:5269
+
+GET {{OpenChatRoom_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
