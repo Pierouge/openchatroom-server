@@ -18,3 +18,5 @@
 *.db-wal
 *.fake
 
+
+.fake
