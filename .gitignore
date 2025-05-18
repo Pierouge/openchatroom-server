@@ -6,6 +6,8 @@
 **/.build/
 **/.site/
 
+**/appsettings.json
+**/appsettings.Development.json
 *.user
 *.suo
 *.userosscache
