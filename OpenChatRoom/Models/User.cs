@@ -11,8 +11,10 @@ public class User
 
     [Column("visibleName")]
     public string VisibleName { get; set; } = string.Empty;
-    
+
     [Column("password")]
     public string Password { get; set; } = string.Empty;
+    [Column("salt")]
+    public string Salt { get; set; } = string.Empty;
 
 }
