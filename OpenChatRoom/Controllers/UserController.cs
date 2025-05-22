@@ -1,26 +1,45 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 
 
 [ApiController]
 [Route("user")]
 public class UsersController : ControllerBase
 {
-    private readonly AppDbContext _context;
-    public UsersController(AppDbContext context) => _context = context;
+    private readonly IMongoCollection<User> userCollection;
+
+    // Set the correct collection
+    public UsersController(IConfiguration iconf, IMongoClient mongoClient)
+    {
+        string? db = iconf.GetValue<string>("MongoDatabaseName");
+        userCollection = mongoClient.GetDatabase(db).GetCollection<User>("user");
+    }
 
     [HttpGet]
-    public async Task<IActionResult> GetUsers()
+    public async Task<ActionResult<List<User>>> GetAll()
     {
-        var users = await _context.Users.ToListAsync();
-        return Ok(users);
+        return Ok(await userCollection.Find(_ => true).ToListAsync());
     }
 
     [HttpPost]
-    public async Task<IActionResult> AddUser(User user)
+    public async Task<ActionResult> Create(User user)
     {
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetUsers), new { id = user.Id }, user);
+        // Check type of input
+        if (user == null) return BadRequest("Invalid request: Expected a JSON object.");
+
+        // Check if user already exists
+        User? existingUser = userCollection.Find(u => u.userName == user.userName).FirstOrDefault();
+        if (existingUser != null) return Conflict("User already exists."); 
+
+        // Check if the data sent respects pre-set rules in DB
+        try
+        {
+            await userCollection.InsertOneAsync(user);
+            return Created();
+        }
+        catch (MongoCommandException)
+        {
+            return BadRequest("Database validation failed.");
+        }
     }
 }

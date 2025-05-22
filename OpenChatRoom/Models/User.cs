@@ -1,18 +1,20 @@
-using System.ComponentModel.DataAnnotations.Schema;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 public class User
 {
-
-    [Column("id")]
-    public string Id { get; set; } = string.Empty;
-
-    [Column("username")]
-    public string Username { get; set; } = string.Empty;
-
-    [Column("visibleName")]
-    public string VisibleName { get; set; } = string.Empty;
-    
-    [Column("password")]
-    public string Password { get; set; } = string.Empty;
-
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
+    [BsonElement("_id")]
+    public string id { get; set; } = string.Empty;
+    [BsonElement("userName")]
+    public string userName { get; set; } = string.Empty;
+    [BsonElement("visibleName")]
+    public string visibleName { get; set; } = string.Empty;
+    [BsonElement("password")]
+    public string password { get; set; } = string.Empty;
+    [BsonElement("salt")]
+    public string salt { get; set; } = string.Empty;
+    [BsonElement("friends")]
+    public string[] friends { get; set; } = Array.Empty<string>();
 }
