@@ -11,4 +11,8 @@
     <PackageReference Include="MongoDB.Driver" Version="3.4.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="srp" Version="*" />
+  </ItemGroup>
+
 </Project>

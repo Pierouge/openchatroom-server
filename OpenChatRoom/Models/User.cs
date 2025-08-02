@@ -11,8 +11,8 @@ public class User
     public string userName { get; set; } = string.Empty;
     [BsonElement("visibleName")]
     public string visibleName { get; set; } = string.Empty;
-    [BsonElement("password")]
-    public string password { get; set; } = string.Empty;
+    [BsonElement("verifier")]
+    public string verifier { get; set; } = string.Empty;
     [BsonElement("salt")]
     public string salt { get; set; } = string.Empty;
     [BsonElement("friends")]
