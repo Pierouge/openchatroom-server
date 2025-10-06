@@ -1,7 +1,9 @@
+using System.Text;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SecureRemotePassword;
+using System.Security.Cryptography;
 
 [ApiController]
 [Route("user")]
@@ -17,6 +19,47 @@ public class UsersController : ControllerBase
         return Ok();
     }
 
+    [HttpPost("create")]
+    [Consumes("application/json")]
+    [ValidateAntiForgeryToken]
+    public async Task<ActionResult> Create(User user)
+    {
+        // Check type of input
+        if (user == null) return BadRequest("Invalid request: Expected a JSON object.");
+
+        user.IsAdmin = false; // Change to be sure, to counter the funny hacked client
+
+        // Check if user already exists
+        User? existingUser = _context.Users.Where(u => u.Username == user.Username).FirstOrDefault();
+        if (existingUser != null) return Conflict("Username already exists.");
+
+        // Check if the data sent respects pre-set rules in DB
+        try
+        {
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            // Add the username to the session
+            HttpContext.Session.SetString("username", user.Username);
+            // Add a login flag for the session
+            HttpContext.Session.SetString("logged_in", "true");
+
+            return Created();
+        }
+        catch (DbUpdateException ex)
+        {
+            if (ex.InnerException is MySqlConnector.MySqlException mySqlEx)
+            {
+                if (mySqlEx.Number == 1062) // Error 1062 is the DUPLICATE exception error in MySQL
+                {
+                    return Conflict("This user already exists");
+                }
+                return BadRequest($"SQL Error {mySqlEx.Number}: {mySqlEx.Message}");
+            }
+            return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+    }
+
     [HttpGet("getSRPInfo/{username}/{clientEphemeralPublic}")]
     [Produces("application/json")]
     public ActionResult GetSRPInfo(string userName, string clientEphemeralPublic) // Phase 2 of SRP Handshake
@@ -25,8 +68,18 @@ public class UsersController : ControllerBase
         User? user = _context.Users.Where(u => u.Username == userName).FirstOrDefault();
         if (user == null) return NotFound("Impossible to find such user.");
 
+        // To check if there's an old connection
+        string? oldSessionId = Request.Cookies["OpenChatRoom.Session"];
+
         string salt = user.Salt;
         string verifier = user.Verifier;
+
+        byte[]? key;
+        if (!string.IsNullOrEmpty(oldSessionId)) key = HKDF.DeriveKey(hashAlgorithmName: HashAlgorithmName.SHA256,
+                    ikm: Encoding.UTF8.GetBytes(oldSessionId),
+                    salt: Encoding.UTF8.GetBytes(salt),
+                    info: Encoding.UTF8.GetBytes(userName + "|" + verifier),
+                    outputLength:32);
 
         // Generates the Ephemeral
         SrpEphemeral serverEphemeral = new SrpServer().GenerateEphemeral(verifier);
@@ -46,41 +99,10 @@ public class UsersController : ControllerBase
         return Ok(returnDict);
     }
 
-    [HttpPost("create")]
-    [Consumes("application/json")]
-    public async Task<ActionResult> Create(User user)
-    {
-        // Check type of input
-        if (user == null) return BadRequest("Invalid request: Expected a JSON object.");
-
-        // Check if user already exists
-        User? existingUser = _context.Users.Where(u => u.Username == user.Username).FirstOrDefault();
-        if (existingUser != null) return Conflict("Username already exists.");
-
-        // Check if the data sent respects pre-set rules in DB
-        try
-        {
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-            return Created();
-        }
-        catch (DbUpdateException ex)
-        {
-            if (ex.InnerException is MySqlConnector.MySqlException mySqlEx)
-            {
-                if (mySqlEx.Number == 1062) // Error 1062 is the DUPLICATE exception error in MySQL
-                {
-                    return Conflict("This user already exists");
-                }
-                return BadRequest($"SQL Error {mySqlEx.Number}: {mySqlEx.Message}");
-            }
-            return StatusCode(StatusCodes.Status500InternalServerError);
-        }
-    }
-
     [HttpPost("srp-m2")]
     [Consumes("text/plain")]
     [Produces("text/plain")]
+    [IgnoreAntiforgeryToken]
     public async Task<ActionResult<string>> sendSRPM2() // Phase 4 of SRP
     {
         // Gets the proof by reading the body
@@ -104,7 +126,6 @@ public class UsersController : ControllerBase
         // Clean the Data
         HttpContext.Session.Remove("server_secret_ephemeral");
         HttpContext.Session.Remove("client_public_ephemeral");
-        HttpContext.Session.Remove("username");
         HttpContext.Session.Remove("verifier");
         HttpContext.Session.Remove("salt");
 
