@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SecureRemotePassword;
 using System.Security.Cryptography;
+using System.Runtime.InteropServices.JavaScript;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 [ApiController]
 [Route("user")]
@@ -22,10 +25,17 @@ public class UsersController : ControllerBase
     [HttpPost("create")]
     [Consumes("application/json")]
     [ValidateAntiForgeryToken]
-    public async Task<ActionResult> Create(User user)
+    public async Task<ActionResult> Create(JsonArray jsonArray)
     {
+        if (jsonArray == null) return BadRequest("Invalid request: Expected a JSON array.");
+        if (jsonArray.Count != 2) return BadRequest("Invalid request: Wrong size of the JsonArray");
+        string userString = jsonArray[0]!.ToJsonString();
+
+        User? user = JsonSerializer.Deserialize<User>(userString);
+        bool saveLogin = jsonArray[1]!.GetValue<bool>();
+
         // Check type of input
-        if (user == null) return BadRequest("Invalid request: Expected a JSON object.");
+        if (user == null) return BadRequest("Invalid request: Expected userdata first.");
 
         user.IsAdmin = false; // Change to be sure, to counter the funny hacked client
 
@@ -37,6 +47,22 @@ public class UsersController : ControllerBase
         try
         {
             _context.Users.Add(user);
+            if (saveLogin)
+            {
+                RefreshToken refreshToken = new(user.Id);
+                Response.Cookies.Append(
+                    "OpenChatRoom.Refresh",
+                    refreshToken.Token,
+                    new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.None,
+                        Expires = DateTime.Now.AddDays(15)
+                    }
+                );
+                _context.RefreshTokens.Add(refreshToken);
+            }
             await _context.SaveChangesAsync();
 
             // Add the username to the session
