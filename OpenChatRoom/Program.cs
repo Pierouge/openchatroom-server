@@ -1,5 +1,6 @@
-using MongoDB.Driver;
-
+using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -8,18 +9,47 @@ builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Connection with MongoDB
-builder.Services.AddSingleton<IMongoClient>(sp =>
+// Storage for Session data
+builder.Services.AddDistributedMemoryCache();
+
+// To ensure the connection to the MySQL DB
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseMySql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
+    )
+);
+
+builder.Services.AddSession(options =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("MongoDb");
-    return new MongoClient(connectionString);
+    options.IdleTimeout = TimeSpan.FromMinutes(15); // Set the session timeout
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // require HTTPS
+    options.Cookie.SameSite = SameSiteMode.None; // allow cross-site
+    options.Cookie.Name = "OpenChatRoom.Session";
 });
 
-builder.Services.AddScoped(sp =>
+builder.Services.AddCors(options =>
 {
-    var client = sp.GetRequiredService<IMongoClient>();
-    var database = client.GetDatabase("openchatroom"); // Replace with your actual database name
-    return database;
+    options.AddPolicy("AllowWasmApp", policy =>
+    {
+        policy.SetIsOriginAllowed(_ => true) // To allow any origin
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
+builder.Services.AddAntiforgery(options =>
+{
+    // Set Cookie properties using CookieBuilder properties†.
+    options.HeaderName = "OPENCHATROOM-CSRF-TOKEN";
+});
+
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
 });
 
 var app = builder.Build();
@@ -30,8 +60,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseCors("AllowWasmApp");
+app.UseSession(); // Uses the Session system
 app.UseHttpsRedirection();
 
 app.MapControllers();
 app.Run();
-
