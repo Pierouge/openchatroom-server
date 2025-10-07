@@ -33,4 +33,7 @@ public class User
     [Column("isAdmin")]
     public bool IsAdmin { get; set; } = false;
 
+    // Set foreign keys here
+    public RefreshToken? refreshToken { get; set; }
+
 }

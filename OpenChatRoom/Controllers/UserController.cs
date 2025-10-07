@@ -1,12 +1,10 @@
 using System.Text;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SecureRemotePassword;
-using System.Security.Cryptography;
-using System.Runtime.InteropServices.JavaScript;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Security;
 
 [ApiController]
 [Route("user")]
@@ -49,7 +47,7 @@ public class UsersController : ControllerBase
             _context.Users.Add(user);
             if (saveLogin)
             {
-                RefreshToken refreshToken = new(user.Id);
+                RefreshToken refreshToken = new(user);
                 Response.Cookies.Append(
                     "OpenChatRoom.Refresh",
                     refreshToken.Token,
@@ -68,7 +66,7 @@ public class UsersController : ControllerBase
             // Add the username to the session
             HttpContext.Session.SetString("username", user.Username);
             // Add a login flag for the session
-            HttpContext.Session.SetString("logged_in", "true");
+            HttpContext.Session.SetString("logged_in", bool.TrueString);
 
             return Created();
         }
@@ -94,18 +92,8 @@ public class UsersController : ControllerBase
         User? user = _context.Users.Where(u => u.Username == userName).FirstOrDefault();
         if (user == null) return NotFound("Impossible to find such user.");
 
-        // To check if there's an old connection
-        string? oldSessionId = Request.Cookies["OpenChatRoom.Session"];
-
         string salt = user.Salt;
         string verifier = user.Verifier;
-
-        byte[]? key;
-        if (!string.IsNullOrEmpty(oldSessionId)) key = HKDF.DeriveKey(hashAlgorithmName: HashAlgorithmName.SHA256,
-                    ikm: Encoding.UTF8.GetBytes(oldSessionId),
-                    salt: Encoding.UTF8.GetBytes(salt),
-                    info: Encoding.UTF8.GetBytes(userName + "|" + verifier),
-                    outputLength:32);
 
         // Generates the Ephemeral
         SrpEphemeral serverEphemeral = new SrpServer().GenerateEphemeral(verifier);
@@ -126,14 +114,15 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("srp-m2")]
-    [Consumes("text/plain")]
+    [Consumes("application/json")]
     [Produces("text/plain")]
     [IgnoreAntiforgeryToken]
-    public async Task<ActionResult<string>> sendSRPM2() // Phase 4 of SRP
+    public async Task<ActionResult<string>> sendSRPM2(JsonObject jsonObject) // Phase 4 of SRP
     {
-        // Gets the proof by reading the body
-        using var reader = new StreamReader(Request.Body);
-        string clientSessionProof = await reader.ReadToEndAsync();
+        Dictionary<string, string>? requestValues = JsonSerializer.Deserialize<Dictionary<string, string>>(jsonObject);
+        if (requestValues == null) return BadRequest("Error: expected a jsonObject");
+        string clientSessionProof = requestValues["proof"];
+        _ = bool.TryParse(requestValues["saveLogin"], out bool saveLogin);
 
         // Get back data from phase 2
         string? serverEphemeralSecret = HttpContext.Session.GetString("server_secret_ephemeral");
@@ -146,8 +135,16 @@ public class UsersController : ControllerBase
         if (serverEphemeralSecret == null || clientPublicEphemeral == null
         || username == null || verifier == null || salt == null) return Unauthorized("The session has not been saved.");
         SrpServer server = new();
-        SrpSession serverSession = server.DeriveSession(serverEphemeralSecret, clientPublicEphemeral, salt, username,
-        verifier, clientSessionProof);
+        SrpSession serverSession;
+        try
+        {
+            serverSession = server.DeriveSession(serverEphemeralSecret, clientPublicEphemeral, salt, username,
+                verifier, clientSessionProof);
+        }
+        catch (SecurityException)
+        {
+            return Unauthorized("Wrong Credentials");
+        }
 
         // Clean the Data
         HttpContext.Session.Remove("server_secret_ephemeral");
@@ -156,7 +153,26 @@ public class UsersController : ControllerBase
         HttpContext.Session.Remove("salt");
 
         // Add a login flag for the session
-        HttpContext.Session.SetString("logged_in", "true");
+        HttpContext.Session.SetString("logged_in", bool.TrueString);
+
+        if (saveLogin)
+        {
+            User? user = _context.Users.Where(u => u.Username == username).FirstOrDefault();
+            RefreshToken refreshToken = new(user!);
+            Response.Cookies.Append(
+                "OpenChatRoom.Refresh",
+                refreshToken.Token,
+                new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.None,
+                    Expires = DateTime.Now.AddDays(15)
+                }
+            );
+            _context.RefreshTokens.Add(refreshToken);
+            await _context.SaveChangesAsync();
+        }
 
         return Ok(serverSession.Proof);
     }

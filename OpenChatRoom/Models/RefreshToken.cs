@@ -4,22 +4,31 @@ using System.Text;
 
 public class RefreshToken
 {
+    // Parameterless constructor required by EF Core
+    public RefreshToken() { }
+
+    public RefreshToken(User user)
+    {
+        User = user;
+        UserId = user.Id;
+        Token = generateToken(178);
+        TokenTime = DateTime.Now.AddDays(15);
+    }
+
     [Required]
     [StringLength(178)]
     [Column("token")]
-    public string Token { get; set; } = generateToken(178);
+    public string Token { get; set; } = string.Empty;
+
     [Required]
     [StringLength(32)]
     [Column("user")]
-    public string User { get; set; }
-    [Required]
-    [Column("tokenTime")]
-    public DateTime TokenTime = DateTime.Now.AddDays(15);
+    public string UserId { get; set; } = string.Empty;
+    public User User { get; set; }
 
-    public RefreshToken(string user)
-    {
-        User = user;
-    }
+    [Required]
+    [Column("expiryTime")]
+    public DateTime TokenTime { get; set; }
 
     private static string generateToken(int desiredLength)
     {
