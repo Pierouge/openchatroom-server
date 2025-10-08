@@ -158,7 +158,8 @@ public class UsersController : ControllerBase
         if (saveLogin)
         {
             User? user = _context.Users.Where(u => u.Username == username).FirstOrDefault();
-            RefreshToken refreshToken = new(user!);
+            if (user!.refreshToken != null) _context.RefreshTokens.Remove(user.refreshToken);
+            RefreshToken refreshToken = new(user!); 
             Response.Cookies.Append(
                 "OpenChatRoom.Refresh",
                 refreshToken.Token,

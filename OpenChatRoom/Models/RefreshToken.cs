@@ -12,7 +12,7 @@ public class RefreshToken
         User = user;
         UserId = user.Id;
         Token = generateToken(178);
-        TokenTime = DateTime.Now.AddDays(15);
+        ExpiryTime = DateTime.Now.AddDays(15);
     }
 
     [Required]
@@ -28,7 +28,7 @@ public class RefreshToken
 
     [Required]
     [Column("expiryTime")]
-    public DateTime TokenTime { get; set; }
+    public DateTime ExpiryTime { get; set; }
 
     private static string generateToken(int desiredLength)
     {
