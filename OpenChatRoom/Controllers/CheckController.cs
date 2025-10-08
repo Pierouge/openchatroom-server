@@ -46,6 +46,19 @@ public class CheckController : ControllerBase
         _context.RefreshTokens.Remove(refreshToken);
         RefreshToken newRefreshToken = new(user);
         _context.RefreshTokens.Add(newRefreshToken);
+
+        Response.Cookies.Append(
+            "OpenChatRoom.Refresh",
+            newRefreshToken.Token,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = DateTime.Now.AddDays(15)
+            }
+        );
+
         await _context.SaveChangesAsync();
         
         return Ok();

@@ -14,8 +14,19 @@ public class UsersController : ControllerBase
     public UsersController(AppDbContext context) => _context = context;
 
     [HttpGet("terminateSession")]
-    public ActionResult TerminateSession()
+    public async Task<ActionResult> TerminateSession()
     {
+        string? sessionUsername = HttpContext.Session.GetString("username");
+        if (!string.IsNullOrEmpty(sessionUsername))
+        {
+            User? user = await _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefaultAsync();
+            if (user != null && user.refreshToken != null)
+            {
+                _context.RefreshTokens.Remove(user.refreshToken);
+                await _context.SaveChangesAsync();
+            }
+        }
+        Response.Cookies.Delete("OpenChatRoom.Refresh");
         HttpContext.Session.Clear();
         return Ok();
     }
