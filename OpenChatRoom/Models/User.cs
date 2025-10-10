@@ -38,6 +38,6 @@ public class User
     public List<Server> Servers { get; } = [];
     public List<Message> Messages { get; } = [];
     public List<Channel> PrivateChannels { get; } = [];
-    public List<Friends> SentRequests { get; } = [];
-    public List<Friends> ReceivedRequests { get; } = [];
+    public List<FriendRequest> SentRequests { get; } = [];
+    public List<FriendRequest> ReceivedRequests { get; } = [];
 }

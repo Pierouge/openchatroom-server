@@ -1,8 +1,19 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-public class Friends
+public class FriendRequest
 {
+
+    public FriendRequest() { }
+    
+    public FriendRequest(User author, User receiver)
+    {
+        Author = author;
+        AuthorId = author.Id;
+        Receiver = receiver;
+        ReceiverId = receiver.Id;
+        IsAccepted = false;
+    }
 
     [Required]
     [StringLength(32)]

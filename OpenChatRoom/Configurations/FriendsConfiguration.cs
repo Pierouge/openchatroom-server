@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-public class FriendsConfiguration : IEntityTypeConfiguration<Friends>
+public class FriendsConfiguration : IEntityTypeConfiguration<FriendRequest>
 {
-    public void Configure(EntityTypeBuilder<Friends> builder)
+    public void Configure(EntityTypeBuilder<FriendRequest> builder)
     {
         builder.ToTable("friends");
         builder.HasKey(e => new { e.AuthorId, e.ReceiverId });
