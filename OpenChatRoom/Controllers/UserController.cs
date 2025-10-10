@@ -17,7 +17,7 @@ public class UsersController : ControllerBase
     [HttpPost("create")]
     [Consumes("application/json")]
     [ValidateAntiForgeryToken]
-    public async Task<ActionResult> Create(JsonArray jsonArray)
+    public ActionResult Create(JsonArray jsonArray)
     {
         if (jsonArray == null) return BadRequest("Invalid request: Expected a JSON array.");
         if (jsonArray.Count != 2) return BadRequest("Invalid request: Wrong size of the JsonArray");
@@ -55,7 +55,7 @@ public class UsersController : ControllerBase
                 );
                 _context.RefreshTokens.Add(refreshToken);
             }
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();
 
             // Add the username to the session
             HttpContext.Session.SetString("username", user.Username);
@@ -111,7 +111,7 @@ public class UsersController : ControllerBase
     [Consumes("application/json")]
     [Produces("text/plain")]
     [IgnoreAntiforgeryToken]
-    public async Task<ActionResult<string>> sendSRPM2(JsonObject jsonObject) // Phase 4 of SRP
+    public ActionResult<string> sendSRPM2(JsonObject jsonObject) // Phase 4 of SRP
     {
         Dictionary<string, string>? requestValues = JsonSerializer.Deserialize<Dictionary<string, string>>(jsonObject);
         if (requestValues == null) return BadRequest("Error: expected a jsonObject");
@@ -166,7 +166,7 @@ public class UsersController : ControllerBase
                 }
             );
             _context.RefreshTokens.Add(refreshToken);
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();
         }
 
         return Ok(serverSession.Proof);
@@ -178,11 +178,11 @@ public class UsersController : ControllerBase
         string? sessionUsername = HttpContext.Session.GetString("username");
         if (!string.IsNullOrEmpty(sessionUsername))
         {
-            User? user = await _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefaultAsync();
+            User? user = _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefault();
             if (user != null && user.RefreshToken != null)
             {
                 _context.RefreshTokens.Remove(user.RefreshToken);
-                await _context.SaveChangesAsync();
+                _context.SaveChangesAsync();
             }
         }
         Response.Cookies.Delete("OpenChatRoom.Refresh");
@@ -195,15 +195,16 @@ public class UsersController : ControllerBase
     {
         string? sessionUsername = HttpContext.Session.GetString("username");
         if (sessionUsername == null) return NotFound("User not found");
-        User? user = await _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefaultAsync();
+        User? user = _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefault();
         if (user == null) return NotFound("User not found");
         _context.Users.Remove(user);
         if (removeMessages)
         {
-            List<Message> messages = await _context.Messages.Where(m => m.Author == user).ToListAsync();
+            List<Message> messages = _context.Messages.Where(m => m.Author == user).ToList();
             _context.Remove(messages);
         }
-        await _context.SaveChangesAsync();
-        return Ok();
+        _context.SaveChangesAsync();
+        await TerminateSession();
+        return Accepted();
     }
 }

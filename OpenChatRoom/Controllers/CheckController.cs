@@ -16,7 +16,7 @@ public class CheckController : ControllerBase
 
     [HttpGet]
     [Route("{username}")]
-    public async Task<IActionResult> checkUser(string username)
+    public IActionResult checkUser(string username)
     {
         ISession session = HttpContext.Session;
 
@@ -28,9 +28,9 @@ public class CheckController : ControllerBase
         if (isLoggedIn && username == sessionUsername) return Ok();
 
         // Refresh Session
-        User? user = await _context.Users.Where(u => u.Username == username).FirstOrDefaultAsync();
+        User? user = _context.Users.Where(u => u.Username == username).FirstOrDefault();
         if (user == null) return NotFound("No such user found");
-        RefreshToken? refreshToken = await _context.RefreshTokens.Where(r => r.User == user).FirstOrDefaultAsync();
+        RefreshToken? refreshToken = _context.RefreshTokens.Where(r => r.User == user).FirstOrDefault();
         if (refreshToken == null) return Unauthorized();
 
         // Check if the token is correct
@@ -59,7 +59,7 @@ public class CheckController : ControllerBase
             }
         );
 
-        await _context.SaveChangesAsync();
+        _context.SaveChanges();
         
         return Ok();
     }
