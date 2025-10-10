@@ -5,6 +5,7 @@ using SecureRemotePassword;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Security;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 [ApiController]
 [Route("user")]
@@ -12,24 +13,6 @@ public class UsersController : ControllerBase
 {
     private readonly AppDbContext _context;
     public UsersController(AppDbContext context) => _context = context;
-
-    [HttpGet("terminateSession")]
-    public async Task<ActionResult> TerminateSession()
-    {
-        string? sessionUsername = HttpContext.Session.GetString("username");
-        if (!string.IsNullOrEmpty(sessionUsername))
-        {
-            User? user = await _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefaultAsync();
-            if (user != null && user.refreshToken != null)
-            {
-                _context.RefreshTokens.Remove(user.refreshToken);
-                await _context.SaveChangesAsync();
-            }
-        }
-        Response.Cookies.Delete("OpenChatRoom.Refresh");
-        HttpContext.Session.Clear();
-        return Ok();
-    }
 
     [HttpPost("create")]
     [Consumes("application/json")]
@@ -120,7 +103,7 @@ public class UsersController : ControllerBase
         Dictionary<string, string> returnDict = [];
         returnDict.Add("salt", salt);
         returnDict.Add("server_public_ephemeral", serverEphemeral.Public);
-        
+
         return Ok(returnDict);
     }
 
@@ -169,8 +152,8 @@ public class UsersController : ControllerBase
         if (saveLogin)
         {
             User? user = _context.Users.Where(u => u.Username == username).FirstOrDefault();
-            if (user!.refreshToken != null) _context.RefreshTokens.Remove(user.refreshToken);
-            RefreshToken refreshToken = new(user!); 
+            if (user!.RefreshToken != null) _context.RefreshTokens.Remove(user.RefreshToken);
+            RefreshToken refreshToken = new(user!);
             Response.Cookies.Append(
                 "OpenChatRoom.Refresh",
                 refreshToken.Token,
@@ -187,5 +170,40 @@ public class UsersController : ControllerBase
         }
 
         return Ok(serverSession.Proof);
+    }
+
+    [HttpGet("terminateSession")]
+    public async Task<ActionResult> TerminateSession()
+    {
+        string? sessionUsername = HttpContext.Session.GetString("username");
+        if (!string.IsNullOrEmpty(sessionUsername))
+        {
+            User? user = await _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefaultAsync();
+            if (user != null && user.RefreshToken != null)
+            {
+                _context.RefreshTokens.Remove(user.RefreshToken);
+                await _context.SaveChangesAsync();
+            }
+        }
+        Response.Cookies.Delete("OpenChatRoom.Refresh");
+        HttpContext.Session.Clear();
+        return Ok();
+    }
+
+    [HttpDelete("delete")]
+    public async Task<ActionResult> RemoveUser(bool removeMessages)
+    {
+        string? sessionUsername = HttpContext.Session.GetString("username");
+        if (sessionUsername == null) return NotFound("User not found");
+        User? user = await _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefaultAsync();
+        if (user == null) return NotFound("User not found");
+        _context.Users.Remove(user);
+        if (removeMessages)
+        {
+            List<Message> messages = await _context.Messages.Where(m => m.Author == user).ToListAsync();
+            _context.Remove(messages);
+        }
+        await _context.SaveChangesAsync();
+        return Ok();
     }
 }

@@ -6,7 +6,7 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
     {
         builder.ToTable("refresh_tokens");
         builder.HasKey(e => new { e.Token, e.UserId });
-        builder.HasOne(e => e.User).WithOne(u => u.refreshToken)
+        builder.HasOne(e => e.User).WithOne(u => u.RefreshToken)
             .HasForeignKey<RefreshToken>(e => e.UserId);
     }
 }

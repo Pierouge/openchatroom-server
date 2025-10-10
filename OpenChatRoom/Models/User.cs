@@ -34,6 +34,8 @@ public class User
     public bool IsAdmin { get; set; } = false;
 
     // Set foreign keys here
-    public RefreshToken? refreshToken { get; set; }
+    public RefreshToken? RefreshToken { get; set; }
+    public List<Server> Servers { get; } = [];
+    public List<Message> Messages { get; } = [];
 
 }

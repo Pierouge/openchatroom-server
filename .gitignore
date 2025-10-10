@@ -19,5 +19,5 @@
 *.fake
 *.tmp
 
-
+README.Docker.md
 .fake
