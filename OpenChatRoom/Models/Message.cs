@@ -2,6 +2,9 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 public class Message
 {
+
+    public Message() { }
+
     [Required]
     [StringLength(32)]
     [Column("id")]
@@ -14,7 +17,7 @@ public class Message
 
     [Required]
     [Column("time")]
-    public DateTime Time { get; set; }
+    public DateTime Time { get; set; } = DateTime.Now;
 
     [Required]
     [Column("is_modified")]

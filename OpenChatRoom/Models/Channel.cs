@@ -19,4 +19,6 @@ public class Channel
     public Server? Server { get; set; }
 
     public List<Message> Messages { get; } = [];
+
+    public List<User> PrivateChannelMembers { get; } = [];
 }

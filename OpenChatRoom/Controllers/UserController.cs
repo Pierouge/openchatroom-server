@@ -172,6 +172,44 @@ public class UsersController : ControllerBase
         return Ok(serverSession.Proof);
     }
 
+    [IgnoreAntiforgeryToken]
+    [HttpGet("userInfo")]
+    [Produces("application/json")]
+    public ActionResult GetUserInfo(string username)
+    {
+        bool.TryParse(HttpContext.Session.GetString("logged_in"), out bool loggedIn);
+        if (!loggedIn)
+            return Unauthorized("Your are not logged in.");
+        if (string.IsNullOrEmpty(username))
+            return BadRequest("Missing a username");
+        User? user = _context.Users.Where(u => u.Username == username).FirstOrDefault();
+        if (user == null) return NotFound("Such user does not exist");
+        Dictionary<string, string> returnDict = new()
+        {
+            {"Id", user.Id},
+            {"Username", user.Username},
+            {"VisibleName", user.VisibleName},
+            {"IsAdmin", user.IsAdmin.ToString()}
+        };
+        return Ok(returnDict);
+    }
+
+    [IgnoreAntiforgeryToken]
+    [HttpGet("friendRequests")]
+    [Produces("application/json")]
+    public ActionResult GetFriendRequests()
+    {
+        string? sessionUsername = HttpContext.Session.GetString("username");
+        if (sessionUsername == null) return Unauthorized("Your session is not saved");
+        User? user = _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefault();
+        if (user == null) return Unauthorized("Your session is not saved");
+
+        List<Friends> friendRequests = _context.Friends.Where(f => f.Author == user || f.Receiver == user).ToList();
+        
+        return Ok(friendRequests);
+    }
+
+    [IgnoreAntiforgeryToken]
     [HttpGet("terminateSession")]
     public async Task<ActionResult> TerminateSession()
     {
@@ -190,6 +228,40 @@ public class UsersController : ControllerBase
         return Ok();
     }
 
+    [ValidateAntiForgeryToken]
+    [HttpPost("edit")]
+    public ActionResult EditProfile(User user)
+    {
+        string? sessionUsername = HttpContext.Session.GetString("username");
+        if (sessionUsername == null) return Unauthorized("Your session is not saved");
+        User? sessionUser = _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefault();
+        if (sessionUser == null) return Unauthorized("Your session is not saved");
+        try
+        {
+            sessionUser.Username = user.Username;
+            sessionUser.VisibleName = user.VisibleName;
+            sessionUser.Verifier = user.Verifier;
+            sessionUser.Salt = user.Salt;
+            _context.Users.Update(sessionUser);
+            _context.SaveChanges();
+
+            return Ok();
+        }
+        catch (DbUpdateException ex)
+        {
+            if (ex.InnerException is MySqlConnector.MySqlException mySqlEx)
+            {
+                if (mySqlEx.Number == 1062) // Error 1062 is the DUPLICATE exception error in MySQL
+                {
+                    return Conflict("This user already exists");
+                }
+                return BadRequest($"SQL Error {mySqlEx.Number}: {mySqlEx.Message}");
+            }
+            return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+    }
+
+    [ValidateAntiForgeryToken]
     [HttpDelete("delete")]
     public async Task<ActionResult> RemoveUser(bool removeMessages)
     {

@@ -37,5 +37,7 @@ public class User
     public RefreshToken? RefreshToken { get; set; }
     public List<Server> Servers { get; } = [];
     public List<Message> Messages { get; } = [];
-
+    public List<Channel> PrivateChannels { get; } = [];
+    public List<Friends> SentRequests { get; } = [];
+    public List<Friends> ReceivedRequests { get; } = [];
 }
