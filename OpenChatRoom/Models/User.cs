@@ -7,7 +7,7 @@ public class User
     [Required]
     [StringLength(32)]
     [Column("id")]
-    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Id { get; set; } = IdGenerator.generateId();
 
     [Required]
     [StringLength(32)]

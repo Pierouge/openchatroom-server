@@ -5,7 +5,6 @@ using SecureRemotePassword;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Security;
-using Microsoft.AspNetCore.Http.HttpResults;
 
 [ApiController]
 [Route("user")]
@@ -30,6 +29,7 @@ public class UsersController : ControllerBase
         if (user == null) return BadRequest("Invalid request: Expected userdata first.");
 
         user.IsAdmin = false; // Change to be sure, to counter the funny hacked client
+        user.Id = IdGenerator.generateId(); // Change to make sure that the user has an id
 
         // Check if user already exists
         User? existingUser = _context.Users.Where(u => u.Username == user.Username).FirstOrDefault();
@@ -76,11 +76,15 @@ public class UsersController : ControllerBase
             }
             return StatusCode(StatusCodes.Status500InternalServerError);
         }
+        catch (InvalidOperationException)
+        {
+            return BadRequest("Non-nullable fields of the entity are missing");
+        }
     }
 
     [HttpGet("getSRPInfo/{username}/{clientEphemeralPublic}")]
     [Produces("application/json")]
-    public ActionResult GetSRPInfo(string userName, string clientEphemeralPublic) // Phase 2 of SRP Handshake
+    public ActionResult<JsonObject> GetSRPInfo(string userName, string clientEphemeralPublic) // Phase 2 of SRP Handshake
     {
         //First get info about the current user (check if he exists)
         User? user = _context.Users.Where(u => u.Username == userName).FirstOrDefault();
@@ -173,16 +177,15 @@ public class UsersController : ControllerBase
     }
 
     [IgnoreAntiforgeryToken]
-    [HttpGet("userInfo")]
+    [HttpGet("info")]
     [Produces("application/json")]
-    public ActionResult GetUserInfo(string username)
+    public ActionResult<JsonObject> GetUserInfo(string id)
     {
-        bool.TryParse(HttpContext.Session.GetString("logged_in"), out bool loggedIn);
-        if (!loggedIn)
+        if (SessionChecker.fetchUserBySession(HttpContext.Session, _context) == null)
             return Unauthorized("Your are not logged in.");
-        if (string.IsNullOrEmpty(username))
-            return BadRequest("Missing a username");
-        User? user = _context.Users.Where(u => u.Username == username).FirstOrDefault();
+        if (string.IsNullOrEmpty(id))
+            return BadRequest("Missing an id");
+        User? user = _context.Users.Where(u => u.Id == id).FirstOrDefault();
         if (user == null) return NotFound("Such user does not exist");
         Dictionary<string, string> returnDict = new()
         {
@@ -195,96 +198,20 @@ public class UsersController : ControllerBase
     }
 
     [IgnoreAntiforgeryToken]
-    [HttpGet("friendRequests")]
-    [Produces("application/json")]
-    public ActionResult GetFriendRequests()
+    [HttpGet("privateChannels")]
+    public ActionResult<JsonArray> GetPrivateChannels()
     {
-        _ = bool.TryParse(HttpContext.Session.GetString("logged_in"), out bool isLoggedIn);
-        if (!isLoggedIn) return Unauthorized("Your session is not saved");
-        
-        string? sessionUsername = HttpContext.Session.GetString("username");
-        if (sessionUsername == null) return Unauthorized("Your session is not saved");
-        User? user = _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefault();
+        User? user = SessionChecker.fetchUserBySession(HttpContext.Session, _context);
         if (user == null) return Unauthorized("Your session is not saved");
 
-        List<FriendRequest> friendRequests = _context.FriendRequests.Where(f => f.Author == user || f.Receiver == user).ToList();
-
-        return Ok(friendRequests);
-    }
-
-    [ValidateAntiForgeryToken]
-    [HttpPost("sendFriendRequest")]
-    [Consumes("text/plain")]
-    public ActionResult SendFriendRequest(string receiverId)
-    {
-        _ = bool.TryParse(HttpContext.Session.GetString("logged_in"), out bool isLoggedIn);
-        if (!isLoggedIn) return Unauthorized("Your session is not saved");
-        string? sessionUsername = HttpContext.Session.GetString("username");
-        if (sessionUsername == null) return Unauthorized("Your session is not saved");
-        User? author = _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefault();
-        if (author == null) return Unauthorized("Your session is not saved");
-
-        User? receiver = _context.Users.Where(u => u.Id == receiverId).FirstOrDefault();
-        if (receiver == null) return NotFound("Could not find such user");
-
-        FriendRequest friendRequest = new(author, receiver);
-        _context.FriendRequests.Add(friendRequest);
-        _context.SaveChanges();
-
-        return Accepted();
-    }
-    
-    [ValidateAntiForgeryToken]
-    [HttpGet("acceptFriendRequest")]
-    [Consumes("text/plain")]
-    public ActionResult AcceptFriendRequest(string authorId)
-    {
-        _ = bool.TryParse(HttpContext.Session.GetString("logged_in"), out bool isLoggedIn);
-        if (!isLoggedIn) return Unauthorized("Your session is not saved");
-        string? sessionUsername = HttpContext.Session.GetString("username");
-        if (sessionUsername == null) return Unauthorized("Your session is not saved");
-        User? user = _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefault();
-        if (user == null) return Unauthorized("Your session is not saved");
-
-        FriendRequest? friendRequest = _context.FriendRequests.Where(f => f.AuthorId == authorId
-            && f.Receiver == user).FirstOrDefault();
-
-        if (friendRequest == null) return NotFound("The request was not found");
-
-        friendRequest.IsAccepted = true;
-        _context.FriendRequests.Update(friendRequest);
-        _context.SaveChanges();
-        return Ok();
-    }
-
-    [IgnoreAntiforgeryToken]
-    [HttpGet("terminateSession")]
-    public ActionResult TerminateSession()
-    {
-        string? sessionUsername = HttpContext.Session.GetString("username");
-        if (!string.IsNullOrEmpty(sessionUsername))
-        {
-            User? user = _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefault();
-            if (user != null && user.RefreshToken != null)
-            {
-                _context.RefreshTokens.Remove(user.RefreshToken);
-                _context.SaveChanges();
-            }
-        }
-        Response.Cookies.Delete("OpenChatRoom.Refresh");
-        HttpContext.Session.Clear();
-        return Ok();
+        return Ok(user.PrivateChannels);
     }
 
     [ValidateAntiForgeryToken]
     [HttpPost("edit")]
     public ActionResult EditProfile(User user)
     {
-        _ = bool.TryParse(HttpContext.Session.GetString("logged_in"), out bool isLoggedIn);
-        if (!isLoggedIn) return Unauthorized("Your session is not saved");
-        string? sessionUsername = HttpContext.Session.GetString("username");
-        if (sessionUsername == null) return Unauthorized("Your session is not saved");
-        User? sessionUser = _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefault();
+        User? sessionUser = SessionChecker.fetchUserBySession(HttpContext.Session, _context);
         if (sessionUser == null) return Unauthorized("Your session is not saved");
         try
         {
@@ -311,24 +238,39 @@ public class UsersController : ControllerBase
         }
     }
 
+    [IgnoreAntiforgeryToken]
+    [HttpGet("terminateSession")]
+    public ActionResult TerminateSession()
+    {
+        string? sessionUsername = HttpContext.Session.GetString("username");
+        if (!string.IsNullOrEmpty(sessionUsername))
+        {
+            User? user = _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefault();
+            if (user != null && user.RefreshToken != null)
+            {
+                _context.RefreshTokens.Remove(user.RefreshToken);
+                _context.SaveChanges();
+            }
+        }
+        Response.Cookies.Delete("OpenChatRoom.Refresh");
+        HttpContext.Session.Clear();
+        return Ok();
+    }
+
     [ValidateAntiForgeryToken]
     [HttpDelete("delete")]
     public ActionResult RemoveUser(bool removeMessages)
     {
-        _ = bool.TryParse(HttpContext.Session.GetString("logged_in"), out bool isLoggedIn);
-        if (!isLoggedIn) return Unauthorized("Your session is not saved");
-        string? sessionUsername = HttpContext.Session.GetString("username");
-        if (sessionUsername == null) return NotFound("User not found");
-        User? user = _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefault();
-        if (user == null) return NotFound("User not found");
+        User? user = SessionChecker.fetchUserBySession(HttpContext.Session, _context);
+        if (user == null) return Unauthorized("Your session is not saved");
         _context.Users.Remove(user);
         if (removeMessages)
         {
             List<Message> messages = _context.Messages.Where(m => m.Author == user).ToList();
-            _context.Remove(messages);
+            _context.RemoveRange(messages);
         }
         _context.SaveChanges();
         TerminateSession();
-        return Accepted();
+        return Ok();
     }
 }

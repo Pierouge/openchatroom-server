@@ -9,14 +9,14 @@ public class CheckController : ControllerBase
     public CheckController(AppDbContext context) => _context = context;
 
     [HttpGet]
-    public IActionResult answerCheck()
+    public ActionResult answerCheck()
     {
         return Ok();
     }
 
     [HttpGet]
     [Route("{username}")]
-    public IActionResult checkUser(string username)
+    public ActionResult checkUser(string username)
     {
         ISession session = HttpContext.Session;
 
