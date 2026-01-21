@@ -27,7 +27,7 @@ public class Message
     [StringLength(32)]
     [Column("author")]
     public string AuthorId { get; set; }
-    public User? Author { get; set; }
+    public User Author { get; set; }
 
     [Required]
     [StringLength(32)]
