@@ -18,7 +18,12 @@ public class Channel
     public string? ServerId { get; set; }
     public Server? Server { get; set; }
 
+    [Required]
+    [Column("lastMessage")]
+    public DateTime LastMessage { get; set; } = DateTime.Now;
+
     public List<Message> Messages { get; } = [];
 
     public List<User> PrivateChannelMembers { get; } = [];
 }
+

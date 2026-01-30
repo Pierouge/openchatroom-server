@@ -5,8 +5,8 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: openchatroom
-      MYSQL_USER: root
-      MYSQL_PASSWORD: password
+      # MYSQL_USER: root
+      # MYSQL_PASSWORD: password
     volumes:
       - db-data:/var/lib/mysql
       - ./MySQLQueries/init/:/docker-entrypoint-initdb.d/:ro
@@ -24,12 +24,16 @@ services:
       db:
         condition: service_healthy
     entrypoint: >
-      sh -c "mysql -h db -P 3306 -u root -p password openchatroom < /sql/create_event.sql"
+      sh -c "mysql -h db -P 3306 -u root -ppassword openchatroom < /sql/create_db.sql &&
+           mysql -h db -P 3306 -u root -ppassword openchatroom < /sql/create_event.sql"
     volumes:
       - ./MySQLQueries:/sql:ro
 
   server:
-    image: openchatroom-server:latest
+    image: openchatroom-server
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       db:
@@ -37,11 +41,22 @@ services:
       db-init:
         condition: service_completed_successfully
     ports:
-      - "8080:8080" # NOTE: this has to be fixed soon for https requests
+      # - "5080:8080"
+      - "5443:8443"
     environment:
+      # Environment setup
       - ConnectionStrings__DefaultConnection=server=db;port=3306;user=root;password=password;database=openchatroom
       - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:8080
+
+      # Change user config here
+      - UserConfig__MessageCountPerRequest=50
+      - UserConfig__ChannelCountPerRequest=50
+      # Here update info about the HTTPS server in itself
+      - ASPNETCORE_URLS=https://+:8443
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/app/openchatroom.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=MySecretPassword
+    volumes:
+      - ./certs/openchatroom.pfx:/app/openchatroom.pfx:ro
 
 volumes:
   db-data:

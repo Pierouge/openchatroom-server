@@ -5,9 +5,10 @@
 **/.idea/
 **/.build/
 **/.site/
+**/.nvim/
+**/roslyn-source-generated:/
 
-**/appsettings.json
-**/appsettings.Development.json
+**/*appsettings*.json
 *.user
 *.suo
 *.userosscache
@@ -18,6 +19,9 @@
 *.db-wal
 *.fake
 *.tmp
+*.key
+*.crt
+*.pfx
 
 README.Docker.md
 .fake

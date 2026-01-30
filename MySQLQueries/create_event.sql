@@ -1,3 +1,3 @@
-CREATE EVENT clear_tokens
+CREATE EVENT IF NOT EXISTS clear_tokens
 	ON SCHEDULE EVERY 1 DAY
     DO CALL clean_tokens();
