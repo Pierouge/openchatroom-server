@@ -20,7 +20,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddSession(options =>
 {
-    options.IdleTimeout = TimeSpan.FromMinutes(2); // Set the session timeout
+    options.IdleTimeout = TimeSpan.FromMinutes(15); // Set the session timeout
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // require HTTPS
@@ -56,14 +56,9 @@ builder.Services.AddControllersWithViews(options =>
 
 var app = builder.Build();
 
-// Forces the connection through HTTPS only
-app.UseHsts();
-app.UseHttpsRedirection();
-
 app.UseCors("AllowWasmApp");
 app.UseSession(); // Uses the Session system
-
-app.UseWebSockets();
+app.UseHttpsRedirection();
 
 app.MapControllers();
 app.Run();

@@ -1,5 +1,5 @@
-CREATE DATABASE  IF NOT EXISTS `openchatroom` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
-USE `openchatroom`;
+CREATE DATABASE  IF NOT EXISTS `__DB_NAME__` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `__DB_NAME__`;
 -- MySQL dump 10.13  Distrib 8.4.8, for Linux (x86_64)
 --
 -- Host: 127.0.0.1    Database: openchatroom
@@ -174,7 +174,7 @@ CREATE TABLE `users` (
 DELIMITER ;;
 CREATE DEFINER=`root`@`%` PROCEDURE `clean_tokens`()
 BEGIN
-	DELETE FROM refresh_tokens WHERE clean_tokens < NOW() - INTERVAL 14 DAY;
+	DELETE FROM refresh_tokens WHERE clean_tokens < NOW() - INTERVAL 1 DAY;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;

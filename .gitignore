@@ -8,7 +8,7 @@
 **/.nvim/
 **/roslyn-source-generated:/
 
-**/*appsettings*.json
+# **/*appsettings*.json
 *.user
 *.suo
 *.userosscache

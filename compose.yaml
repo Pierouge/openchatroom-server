@@ -3,15 +3,12 @@ services:
     image: mysql:8.0
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: openchatroom
-      # MYSQL_USER: root
-      # MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
     volumes:
       - db-data:/var/lib/mysql
-      - ./MySQLQueries/init/:/docker-entrypoint-initdb.d/:ro
     ports:
-      - "3306:3306"
+      - "${DB_PORT}:${DB_PORT}"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
       interval: 5s
@@ -23,11 +20,22 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    environment:
+      - DB_NAME=${DB_NAME}
+      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
     entrypoint: >
-      sh -c "mysql -h db -P 3306 -u root -ppassword openchatroom < /sql/create_db.sql &&
-           mysql -h db -P 3306 -u root -ppassword openchatroom < /sql/create_event.sql"
+      sh -c "
+        sed 's/__DB_NAME__/${DB_NAME}/g' /sql/create_db.sql | mysql -h db -P ${DB_PORT} -u root -p${DB_ROOT_PASSWORD}
+
+        sed -e 's/__DB_NAME__/${DB_NAME}/g' -e 's/__DB_USER__/${DB_USER}/g' -e 's/__DB_PASSWORD__/${DB_PASSWORD}/g' /sql/create_user.sql | mysql -h db -P ${DB_PORT} -u root -p${DB_ROOT_PASSWORD} ${DB_NAME}
+
+        mysql -h db -P ${DB_PORT} -u root -p${DB_ROOT_PASSWORD} ${DB_NAME} < sql/create_event.sql
+      "
+
     volumes:
-      - ./MySQLQueries:/sql:ro
+      - ${DB_INIT_SQL_PATH}:/sql:ro
 
   server:
     image: openchatroom-server
@@ -41,22 +49,21 @@ services:
       db-init:
         condition: service_completed_successfully
     ports:
-      # - "5080:8080"
-      - "5443:8443"
+      - "${APP_PORT}:${APP_PORT}"
     environment:
       # Environment setup
-      - ConnectionStrings__DefaultConnection=server=db;port=3306;user=root;password=password;database=openchatroom
+      - ConnectionStrings__DefaultConnection=server=db;port=${DB_PORT};user=${DB_USER};password=${DB_PASSWORD};database=${DB_NAME}
       - ASPNETCORE_ENVIRONMENT=Production
-
-      # Change user config here
-      - UserConfig__MessageCountPerRequest=50
-      - UserConfig__ChannelCountPerRequest=50
-      # Here update info about the HTTPS server in itself
-      - ASPNETCORE_URLS=https://+:8443
+      # User Config info
+      - UserConfig__MessageCountPerRequest=${MessageCountPerRequest}
+      - UserConfig__ChannelCountPerRequest=${ChannelCountPerRequest}
+      # HTTPS server info
+      - ASPNETCORE_URLS=https://+:${APP_PORT}
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/app/openchatroom.pfx
       - ASPNETCORE_Kestrel__Certificates__Default__Password=MySecretPassword
     volumes:
-      - ./certs/openchatroom.pfx:/app/openchatroom.pfx:ro
+      - ${CERT_PATH}:/app/openchatroom.pfx:ro
+      - ${JWT_KEY_PATH}:/app/jwt.key
 
 volumes:
   db-data:
