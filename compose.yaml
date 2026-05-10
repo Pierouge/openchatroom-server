@@ -54,16 +54,24 @@ services:
       # Environment setup
       - ConnectionStrings__DefaultConnection=server=db;port=${DB_PORT};user=${DB_USER};password=${DB_PASSWORD};database=${DB_NAME}
       - ASPNETCORE_ENVIRONMENT=Production
+      # JWT parameters
+      - Jwt__KeyFile=/app/jwt-key.txt
+      - Jwt__Authority=${JwtAuthority}
+      - Jwt__Audience=${JwtAudience}
+      - Jwt__LifeTimeDays=${JwtLifetimeDays}
+      # Encryptor
+      - Encryptor__KeyFile=/app/message-key.txt
       # User Config info
       - UserConfig__MessageCountPerRequest=${MessageCountPerRequest}
       - UserConfig__ChannelCountPerRequest=${ChannelCountPerRequest}
       # HTTPS server info
       - ASPNETCORE_URLS=https://+:${APP_PORT}
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/app/openchatroom.pfx
-      - ASPNETCORE_Kestrel__Certificates__Default__Password=MySecretPassword
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=${CERT_PASSWORD}
     volumes:
       - ${CERT_PATH}:/app/openchatroom.pfx:ro
-      - ${JWT_KEY_PATH}:/app/jwt.key
+      - ${JWT_KEY_PATH}:/app/jwt-key.txt
+      - ${MESSAGE_KEY_PATH}:/app/message-key.txt
 
 volumes:
   db-data:

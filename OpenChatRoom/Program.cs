@@ -1,7 +1,7 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -18,47 +18,70 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     )
 );
 
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromMinutes(15); // Set the session timeout
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // require HTTPS
-    options.Cookie.SameSite = SameSiteMode.None; // allow cross-site
-    options.Cookie.Name = "OpenChatRoom.Session";
-});
-
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(
-        "AllowWasmApp",
-        policy =>
+  options.AddPolicy(
+      "AllowWasmApp",
+      policy =>
+      {
+        policy
+              .SetIsOriginAllowed(_ => true) // To allow any origin
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+      }
+  );
+});
+
+SymmetricSecurityKey jwtKey = KeyManager.getOrGenKey(builder.Configuration.GetSection("Jwt").GetValue<string>("KeyFile")!);
+builder.Services.AddSingleton(jwtKey);
+
+builder
+    .Services.AddAuthentication()
+    .AddJwtBearer(
+        "user",
+        jwtOptions =>
         {
-            policy
-                .SetIsOriginAllowed(_ => true) // To allow any origin
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
+          // jwtOptions.MetadataAddress = builder.Configuration["Api:MetadataAddress"];
+          // Optional if the MetadataAddress is specified
+          jwtOptions.RequireHttpsMetadata = false;
+          jwtOptions.Authority = builder
+              .Configuration.GetSection("Jwt")
+              .GetValue<string>("Authority");
+          jwtOptions.Audience = builder
+              .Configuration.GetSection("Jwt")
+              .GetValue<string>("Audience");
+          jwtOptions.TokenValidationParameters = new TokenValidationParameters
+          {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1),
+            IssuerSigningKey = jwtKey
+          };
+
+          jwtOptions.MapInboundClaims = false;
         }
     );
-});
 
-builder.Services.AddAntiforgery(options =>
-{
-    // Set Cookie properties using CookieBuilder properties†.
-    options.HeaderName = "OPENCHATROOM-CSRF-TOKEN";
-});
+builder.Services.AddSingleton<IJWTBuilder, JWTBuilder>();
 
-builder.Services.AddControllersWithViews(options =>
-{
-    options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
-});
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("Authenticated", policy =>
+          {
+            policy.RequireAuthenticatedUser();
+            policy.RequireClaim("auth", "true");
+            // TODO: Session purge checker here (necessitates session purge DB entries)
+          });
 
-var app = builder.Build();
+WebApplication app = builder.Build();
+
+// Force usage of HTTPS
+app.UseHsts();
+app.UseHttpsRedirection();
 
 app.UseCors("AllowWasmApp");
-app.UseSession(); // Uses the Session system
-app.UseHttpsRedirection();
 
 app.MapControllers();
 app.Run();
