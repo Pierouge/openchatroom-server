@@ -1,4 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -6,21 +5,17 @@ using Microsoft.AspNetCore.Mvc;
 [ApiController]
 [Route("friendRequest")]
 [Authorize(Policy = "Authenticated")]
-public class FriendRequestController : ControllerBase
+public class FriendRequestController(AppDbContext context, UserAccessor accessor) : ControllerBase
 {
-  private readonly AppDbContext _context;
-  public FriendRequestController(AppDbContext context) => _context = context;
+  private readonly AppDbContext _context = context;
+  private readonly UserAccessor _accessor = accessor;
 
   [HttpGet]
   [Produces("application/json")]
   public ActionResult<JsonArray> GetFriendRequests()
   {
-    string? userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-    if (string.IsNullOrWhiteSpace(userId))
-      return Unauthorized("Your session is not saved");
-    User? user = _context.Users.Where(u => u.Id == userId).FirstOrDefault();
+    User? user = _accessor.GetCurrentUser();
     if (user == null) return Unauthorized("Your session is not saved");
-
 
     List<FriendRequest> friendRequests = [];
     friendRequests.AddRange(user.SentRequests);
@@ -33,10 +28,7 @@ public class FriendRequestController : ControllerBase
   [Consumes("text/plain")]
   public ActionResult SendFriendRequest(string receiverId)
   {
-    string? userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-    if (string.IsNullOrWhiteSpace(userId))
-      return Unauthorized("Your session is not saved");
-    User? author = _context.Users.Where(u => u.Id == userId).FirstOrDefault();
+    User? author = _accessor.GetCurrentUser();
     if (author == null) return Unauthorized("Your session is not saved");
 
     User? receiver = _context.Users.Where(u => u.Id == receiverId).FirstOrDefault();
@@ -53,10 +45,7 @@ public class FriendRequestController : ControllerBase
   [Consumes("text/plain")]
   public ActionResult AcceptFriendRequest(string authorId)
   {
-    string? userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-    if (string.IsNullOrWhiteSpace(userId))
-      return Unauthorized("Your session is not saved");
-    User? user = _context.Users.Where(u => u.Id == userId).FirstOrDefault();
+    User? user = _accessor.GetCurrentUser();
     if (user == null) return Unauthorized("Your session is not saved");
 
     FriendRequest? friendRequest = user.ReceivedRequests.Find(f => f.AuthorId == authorId);
@@ -73,10 +62,7 @@ public class FriendRequestController : ControllerBase
   [Consumes("text/plain")]
   public ActionResult RemoveFriendRequest(string friendId)
   {
-    string? userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-    if (string.IsNullOrWhiteSpace(userId))
-      return Unauthorized("Your session is not saved");
-    User? user = _context.Users.Where(u => u.Id == userId).FirstOrDefault();
+    User? user = _accessor.GetCurrentUser();
     if (user == null) return Unauthorized("Your session is not saved");
 
     FriendRequest? friendRequest = user.SentRequests.Find(f => f.ReceiverId == friendId);

@@ -37,7 +37,11 @@ public class JWTBuilder : IJWTBuilder
       new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
     ];
 
-    if (isAuthenticated) claims.Add(new Claim("auth", "true"));
+    if (isAuthenticated)
+    {
+      claims.Add(new Claim("auth", "true"));
+      // TODO: Add an entry to JWT Timestamps (for timeoffset NOW)
+    }
 
     if (extraClaims != null) claims.AddRange(extraClaims);
 

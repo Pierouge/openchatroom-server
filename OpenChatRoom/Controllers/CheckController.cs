@@ -1,13 +1,12 @@
-using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("check")]
-public class CheckController(IJWTBuilder JWTBuilder, AppDbContext context) : ControllerBase
+public class CheckController(IJWTBuilder JWTBuilder, UserAccessor accessor) : ControllerBase
 {
   private readonly IJWTBuilder _JWTBuilder = JWTBuilder;
-  private readonly AppDbContext _context = context;
+  private readonly UserAccessor _accessor = accessor;
 
   [HttpGet]
   public ActionResult answerCheck()
@@ -20,13 +19,10 @@ public class CheckController(IJWTBuilder JWTBuilder, AppDbContext context) : Con
   [Authorize(Policy = "Authenticated")]
   public ActionResult checkUser()
   {
-    string? userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-    if (string.IsNullOrWhiteSpace(userId))
-      return Unauthorized("Your session is not saved");
-    User? user = _context.Users.Where(u => u.Id == userId).FirstOrDefault();
+    User? user = _accessor.GetCurrentUser();
     if (user == null) return Unauthorized("Your session is not saved");
 
-    string jwt = _JWTBuilder.generateToken(userId, true);
+    string jwt = _JWTBuilder.generateToken(user.Id, true);
 
     return Ok(jwt);
   }

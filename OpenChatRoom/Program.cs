@@ -75,6 +75,13 @@ builder.Services.AddAuthorizationBuilder()
             // TODO: Session purge checker here (necessitates session purge DB entries)
           });
 
+// Add the LoginStorage Service as a singleton
+builder.Services.AddSingleton<ILoginStorage, LoginStorage>();
+builder.Services.AddHostedService<LoginStorageCleaner>();
+
+// Add the UserAccessor as a scoped service
+builder.Services.AddScoped<UserAccessor>();
+
 WebApplication app = builder.Build();
 
 // Force usage of HTTPS

@@ -10,14 +10,16 @@ using SecureRemotePassword;
 
 [ApiController]
 [Route("user")]
-public partial class UserController(AppDbContext context, IConfiguration configuration, IJWTBuilder JWTBuilder)
+public partial class UserController(AppDbContext context, IConfiguration configuration, IJWTBuilder JWTBuilder, ILoginStorage loginStorage, UserAccessor accessor)
     : ControllerBase
 {
-  private readonly AppDbContext _context = context;
+  private readonly AppDbContext _dbContext = context;
   private readonly IConfigurationSection configurationSection = configuration.GetSection(
       "UserConfig"
   );
   private readonly IJWTBuilder _JWTBuilder = JWTBuilder;
+  private readonly ILoginStorage _loginStorage = loginStorage;
+  private readonly UserAccessor _accessor = accessor;
 
   [HttpPost("create")]
   [Consumes("application/json")]
@@ -40,7 +42,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     user.Id = IdGenerator.generateId(); // Change to make sure that the user has an id
 
     // Check if user already exists
-    User? existingUser = _context
+    User? existingUser = _dbContext
         .Users.Where(u => u.Username == user.Username)
         .FirstOrDefault();
     if (existingUser != null)
@@ -53,8 +55,8 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     // Check if the data sent respects pre-set rules in DB
     try
     {
-      _context.Users.Add(user);
-      _context.SaveChanges();
+      _dbContext.Users.Add(user);
+      _dbContext.SaveChanges();
 
       string jwt = _JWTBuilder.generateToken(user.Id, true);
 
@@ -91,7 +93,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   public ActionResult<JsonObject> GetSRPInfo(string userName, string clientEphemeralPublic) // Phase 2 of SRP Handshake
   {
     //First get info about the current user (check if he exists)
-    User? user = _context.Users.Where(u => u.Username == userName).FirstOrDefault();
+    User? user = _dbContext.Users.Where(u => u.Username == userName).FirstOrDefault();
     if (user == null)
       return NotFound("Impossible to find such user.");
 
@@ -101,17 +103,27 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     // Generates the Ephemeral
     SrpEphemeral serverEphemeral = new SrpServer().GenerateEphemeral(verifier);
 
-    // Stores the server private Ephemeral and the client public ephemeral for the session
-    HttpContext.Session.SetString("server_secret_ephemeral", serverEphemeral.Secret);
-    HttpContext.Session.SetString("client_public_ephemeral", clientEphemeralPublic);
-    HttpContext.Session.SetString("username", userName);
-    HttpContext.Session.SetString("salt", salt);
-    HttpContext.Session.SetString("verifier", verifier);
+    // Stores the server private Ephemeral and the client public ephemeral in the loginStorage 
+    Dictionary<string, string> localData = new()
+    {
+        {"server_secret_ephemeral", serverEphemeral.Secret},
+        {"client_public_ephemeral", clientEphemeralPublic},
+        {"username", userName},
+        {"salt", salt},
+        {"verifier", verifier}
+    };
+
+    if (!_loginStorage.addEntry(user.Id, localData))
+      return Problem("Unable to add login data to secure session");
 
     // Generates the Response JSON
     Dictionary<string, string> returnDict = [];
     returnDict.Add("salt", salt);
     returnDict.Add("server_public_ephemeral", serverEphemeral.Public);
+
+    // Partial Token to ensure the safety of the protocol
+    string jwt = _JWTBuilder.generateToken(user.Id, false);
+    returnDict.Add("token", jwt);
 
     return Ok(returnDict);
   }
@@ -119,7 +131,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   [HttpPost("srp-m2")]
   [Consumes("application/json")]
   [Produces("text/plain")]
-  [IgnoreAntiforgeryToken]
+  [Authorize]
   public ActionResult<string> sendSRPM2(JsonObject jsonObject) // Phase 4 of SRP
   {
     Dictionary<string, string>? requestValues = JsonSerializer.Deserialize<
@@ -128,24 +140,28 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     if (requestValues == null)
       return BadRequest("Error: expected a jsonObject");
     string clientSessionProof = requestValues["proof"];
-    _ = bool.TryParse(requestValues["saveLogin"], out bool saveLogin);
+
+    User? user = _accessor.GetCurrentUser();
+    if (user == null) return Unauthorized("Your session is not saved");
+
+    Dictionary<string, string>? loginData = _loginStorage.getEntry(user.Id);
+    if (loginData == null) return Unauthorized("The session has not been saved.");
 
     // Get back data from phase 2
-    string? serverEphemeralSecret = HttpContext.Session.GetString("server_secret_ephemeral");
-    string? clientPublicEphemeral = HttpContext.Session.GetString("client_public_ephemeral");
-    string? username = HttpContext.Session.GetString("username");
-    string? verifier = HttpContext.Session.GetString("verifier");
-    string? salt = HttpContext.Session.GetString("salt");
+    string serverEphemeralSecret = loginData["server_secret_ephemeral"];
+    string clientPublicEphemeral = loginData["client_public_ephemeral"];
+    string verifier = loginData["verifier"];
+    string salt = loginData["salt"];
 
     // Derive Server Session
     if (
         serverEphemeralSecret == null
         || clientPublicEphemeral == null
-        || username == null
         || verifier == null
         || salt == null
     )
       return Unauthorized("The session has not been saved.");
+
     SrpServer server = new();
     SrpSession serverSession;
     try
@@ -154,7 +170,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
           serverEphemeralSecret,
           clientPublicEphemeral,
           salt,
-          username,
+          user.Username,
           verifier,
           clientSessionProof
       );
@@ -165,48 +181,24 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     }
 
     // Clean the Data
-    HttpContext.Session.Remove("server_secret_ephemeral");
-    HttpContext.Session.Remove("client_public_ephemeral");
-    HttpContext.Session.Remove("verifier");
-    HttpContext.Session.Remove("salt");
+    _loginStorage.removeEntry(user.Id);
 
-    // Add a login flag for the session
-    HttpContext.Session.SetString("logged_in", bool.TrueString);
-
-    if (saveLogin)
-    {
-      User? user = _context.Users.Where(u => u.Username == username).FirstOrDefault();
-      if (user!.RefreshToken != null)
-        _context.RefreshTokens.Remove(user.RefreshToken);
-      RefreshToken refreshToken = new(user!);
-      Response.Cookies.Append(
-          "OpenChatRoom.Refresh",
-          refreshToken.Token,
-          new CookieOptions
-          {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.None,
-            Expires = DateTime.Now.AddDays(15),
-          }
-      );
-      _context.RefreshTokens.Add(refreshToken);
-      _context.SaveChanges();
-    }
+    Dictionary<string, string> returnDict = new(){
+      {"proof", serverSession.Proof},
+      {"token", _JWTBuilder.generateToken(user.Id, true)}
+    };
 
     return Ok(serverSession.Proof);
   }
 
-  [IgnoreAntiforgeryToken]
   [HttpGet("info/{username}")]
   [Produces("application/json")]
+  [Authorize(Policy = "Authenticated")]
   public ActionResult<JsonObject> GetUserInfo(string username)
   {
-    if (SessionChecker.fetchUserBySession(HttpContext.Session, _context) == null)
-      return Unauthorized("Your are not logged in.");
     if (string.IsNullOrEmpty(username))
       return BadRequest("Missing an id");
-    User? user = _context.Users.Where(u => u.Username == username).FirstOrDefault();
+    User? user = _dbContext.Users.Where(u => u.Username == username).FirstOrDefault();
     if (user == null)
       return NotFound("Such user does not exist");
     Dictionary<string, string> returnDict = new()
@@ -219,13 +211,12 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     return Ok(returnDict);
   }
 
-  [IgnoreAntiforgeryToken]
   [HttpGet("privateChannels/{page}")]
+  [Authorize(Policy = "Authenticated")]
   public ActionResult<JsonArray> GetPrivateChannels(int page)
   {
-    User? user = SessionChecker.fetchUserBySession(HttpContext.Session, _context);
-    if (user == null)
-      return Unauthorized("Your session is not saved");
+    User? user = _accessor.GetCurrentUser();
+    if (user == null) return Unauthorized("Your session is not saved");
 
     JsonArray returnArr = [];
 
@@ -233,7 +224,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
 
     List<Channel> channels =
     [
-        .. _context
+        .. _dbContext
                 .Channels.Where(c => c.PrivateChannelMembers.Any(m => m.Id == user.Id))
                 .OrderByDescending(c => c.LastMessage)
                 .Skip((page - 1) * pageSize)
@@ -254,17 +245,18 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     return Ok(returnArr);
   }
 
-  [ValidateAntiForgeryToken]
   [HttpPost("edit")]
+  [Authorize(Policy = "Authenticated")]
   public ActionResult EditProfile(User user)
   {
-    User? sessionUser = SessionChecker.fetchUserBySession(HttpContext.Session, _context);
+    User? sessionUser = _accessor.GetCurrentUser();
     if (sessionUser == null)
       return Unauthorized("Your session is not saved");
 
-    // TODO: Sanitize the input (verify if names respect rules)
-    //
-    // if (!UsernameRegex().IsMatch(user.Username)) { }
+    if (!UsernameRegex().IsMatch(user.Username))
+    {
+      return BadRequest("Invalid request: Username possess illegal characters");
+    }
 
     try
     {
@@ -272,8 +264,8 @@ public partial class UserController(AppDbContext context, IConfiguration configu
       sessionUser.VisibleName = user.VisibleName;
       sessionUser.Verifier = user.Verifier;
       sessionUser.Salt = user.Salt;
-      _context.Users.Update(sessionUser);
-      _context.SaveChanges();
+      _dbContext.Users.Update(sessionUser);
+      _dbContext.SaveChanges();
 
       return Ok();
     }
@@ -291,40 +283,20 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     }
   }
 
-  [IgnoreAntiforgeryToken]
-  [HttpGet("terminateSession")]
-  public ActionResult TerminateSession()
-  {
-    string? sessionUsername = HttpContext.Session.GetString("username");
-    if (!string.IsNullOrEmpty(sessionUsername))
-    {
-      User? user = _context.Users.Where(u => u.Username == sessionUsername).FirstOrDefault();
-      if (user != null && user.RefreshToken != null)
-      {
-        _context.RefreshTokens.Remove(user.RefreshToken);
-        _context.SaveChanges();
-      }
-    }
-    Response.Cookies.Delete("OpenChatRoom.Refresh");
-    HttpContext.Session.Clear();
-    return Ok();
-  }
-
   [ValidateAntiForgeryToken]
   [HttpDelete("delete")]
   public ActionResult RemoveUser(bool removeMessages)
   {
-    User? user = SessionChecker.fetchUserBySession(HttpContext.Session, _context);
+    User? user = _accessor.GetCurrentUser();
     if (user == null)
       return Unauthorized("Your session is not saved");
-    _context.Users.Remove(user);
+    _dbContext.Users.Remove(user);
     if (removeMessages)
     {
-      List<Message> messages = _context.Messages.Where(m => m.Author == user).ToList();
-      _context.RemoveRange(messages);
+      List<Message> messages = _dbContext.Messages.Where(m => m.Author == user).ToList();
+      _dbContext.RemoveRange(messages);
     }
-    _context.SaveChanges();
-    TerminateSession();
+    _dbContext.SaveChanges();
     return Ok();
   }
 

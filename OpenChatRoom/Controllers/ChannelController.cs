@@ -1,16 +1,16 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("channel")]
-public class ChannelController(AppDbContext context, IConfiguration configuration) : ControllerBase
+public class ChannelController(AppDbContext context, IConfiguration configuration, UserAccessor accessor) : ControllerBase
 {
   private readonly AppDbContext _context = context;
   private readonly IConfigurationSection configurationSection = configuration.GetSection(
       "UserConfig"
   );
+  private readonly UserAccessor _accessor = accessor;
 
   [HttpGet("{channelId}/{page}")]
   [Authorize(Policy = "Authenticated")]
@@ -24,10 +24,7 @@ public class ChannelController(AppDbContext context, IConfiguration configuratio
       return NotFound("Such channel was not found");
 
     // Then check if the user has access to such channel
-    string? userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-    if (string.IsNullOrWhiteSpace(userId))
-      return Unauthorized("Your session is not saved");
-    User? user = _context.Users.Where(u => u.Id == userId).FirstOrDefault();
+    User? user = _accessor.GetCurrentUser();
     if (user == null)
       return Unauthorized("The user was not found");
 
