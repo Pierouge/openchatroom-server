@@ -24,7 +24,9 @@ public class ChannelController(AppDbContext context, IConfiguration configuratio
       return NotFound("Such channel was not found");
 
     // Then check if the user has access to such channel
-    string userId = User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value;
+    string? userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+    if (string.IsNullOrWhiteSpace(userId))
+      return Unauthorized("Your session is not saved");
     User? user = _context.Users.Where(u => u.Id == userId).FirstOrDefault();
     if (user == null)
       return Unauthorized("The user was not found");

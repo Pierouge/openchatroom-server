@@ -15,9 +15,12 @@ public class FriendRequestController : ControllerBase
   [Produces("application/json")]
   public ActionResult<JsonArray> GetFriendRequests()
   {
-    string userId = User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value;
+    string? userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+    if (string.IsNullOrWhiteSpace(userId))
+      return Unauthorized("Your session is not saved");
     User? user = _context.Users.Where(u => u.Id == userId).FirstOrDefault();
     if (user == null) return Unauthorized("Your session is not saved");
+
 
     List<FriendRequest> friendRequests = [];
     friendRequests.AddRange(user.SentRequests);
@@ -30,7 +33,9 @@ public class FriendRequestController : ControllerBase
   [Consumes("text/plain")]
   public ActionResult SendFriendRequest(string receiverId)
   {
-    string userId = User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value;
+    string? userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+    if (string.IsNullOrWhiteSpace(userId))
+      return Unauthorized("Your session is not saved");
     User? author = _context.Users.Where(u => u.Id == userId).FirstOrDefault();
     if (author == null) return Unauthorized("Your session is not saved");
 
@@ -48,7 +53,9 @@ public class FriendRequestController : ControllerBase
   [Consumes("text/plain")]
   public ActionResult AcceptFriendRequest(string authorId)
   {
-    string userId = User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value;
+    string? userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+    if (string.IsNullOrWhiteSpace(userId))
+      return Unauthorized("Your session is not saved");
     User? user = _context.Users.Where(u => u.Id == userId).FirstOrDefault();
     if (user == null) return Unauthorized("Your session is not saved");
 
@@ -66,7 +73,9 @@ public class FriendRequestController : ControllerBase
   [Consumes("text/plain")]
   public ActionResult RemoveFriendRequest(string friendId)
   {
-    string userId = User.FindFirst(JwtRegisteredClaimNames.Sub)!.Value;
+    string? userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+    if (string.IsNullOrWhiteSpace(userId))
+      return Unauthorized("Your session is not saved");
     User? user = _context.Users.Where(u => u.Id == userId).FirstOrDefault();
     if (user == null) return Unauthorized("Your session is not saved");
 
