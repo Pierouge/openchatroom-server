@@ -35,6 +35,10 @@ public class KeyManager
     byte[] bytes = RandomNumberGenerator.GetBytes(32);
     string hex = Convert.ToHexString(bytes).ToLowerInvariant();
 
+    string? dir = Path.GetDirectoryName(path);
+    if (!Directory.Exists(dir))
+      Directory.CreateDirectory(dir!);
+
     File.WriteAllText(path, hex);
     return bytes;
   }

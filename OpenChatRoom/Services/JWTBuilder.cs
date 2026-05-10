@@ -4,7 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 
 public interface IJWTBuilder
 {
-  string generateToken(string userid, IEnumerable<Claim>? extraClaims = null, TimeSpan? lifetime = null);
+  string generateToken(string userid, bool isAuthenticated = false, IEnumerable<Claim>? extraClaims = null, TimeSpan? lifetime = null);
 }
 
 public class JWTBuilder : IJWTBuilder
@@ -26,7 +26,7 @@ public class JWTBuilder : IJWTBuilder
     defaultLifetime = TimeSpan.FromDays(days);
   }
 
-  public string generateToken(string userid, IEnumerable<Claim>? extraClaims = null, TimeSpan? lifetime = null)
+  public string generateToken(string userid, bool isAuthenticated = false, IEnumerable<Claim>? extraClaims = null, TimeSpan? lifetime = null)
   {
     DateTime now = DateTime.UtcNow;
 
@@ -36,6 +36,8 @@ public class JWTBuilder : IJWTBuilder
       new(JwtRegisteredClaimNames.Jti, IdGenerator.generateId()),
       new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
     ];
+
+    if (isAuthenticated) claims.Add(new Claim("auth", "true"));
 
     if (extraClaims != null) claims.AddRange(extraClaims);
 
