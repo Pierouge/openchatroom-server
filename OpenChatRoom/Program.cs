@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -6,9 +7,6 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-
-// Storage for Session data
-builder.Services.AddDistributedMemoryCache();
 
 // To ensure the connection to the MySQL DB
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -32,6 +30,9 @@ builder.Services.AddCors(options =>
       }
   );
 });
+
+// Add the UserAccessor as a scoped service
+builder.Services.AddScoped<UserAccessor>();
 
 SymmetricSecurityKey jwtKey = KeyManager.getOrGenKey(builder.Configuration.GetSection("Jwt").GetValue<string>("KeyFile")!);
 builder.Services.AddSingleton(jwtKey);
@@ -67,6 +68,8 @@ builder
 
 builder.Services.AddSingleton<IJWTBuilder, JWTBuilder>();
 
+builder.Services.AddScoped<IAuthorizationHandler, JwtValidityHandler>();
+
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("Authenticated", policy =>
           {
@@ -78,16 +81,17 @@ builder.Services.AddAuthorizationBuilder()
 builder.Services.AddSingleton<ILoginStorage, LoginStorage>();
 builder.Services.AddHostedService<LoginStorageCleaner>();
 
-// Add the UserAccessor as a scoped service
-builder.Services.AddScoped<UserAccessor>();
-
 WebApplication app = builder.Build();
 
 // Force usage of HTTPS
 app.UseHsts();
 app.UseHttpsRedirection();
 
+app.UseRouting();
 app.UseCors("AllowWasmApp");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 app.Run();

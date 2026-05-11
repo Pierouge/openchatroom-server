@@ -6,13 +6,14 @@ public sealed class JwtValidityRequirement : IAuthorizationRequirement
   public string RequiredAuthValue { get; } = "true";
 }
 
-public class JwtValidityHandler(UserAccessor userAccessor) : AuthorizationHandler<JwtValidityRequirement>
+public class JwtValidityHandler(UserAccessor accessor) : AuthorizationHandler<JwtValidityRequirement>
 {
-  private readonly UserAccessor userAccessor = userAccessor;
+  private readonly UserAccessor _accessor = accessor;
 
   protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, JwtValidityRequirement requirement)
   {
-    User? user = userAccessor.GetCurrentUser();
+    // Get user manually, as UserAccessor relies on dependencies not yet built at that point
+    User? user = _accessor.GetCurrentUser(context);
     if (user == null) return;
 
     // Ensure auth = true

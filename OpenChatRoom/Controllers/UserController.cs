@@ -58,7 +58,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
       _dbContext.Users.Add(user);
       _dbContext.SaveChanges();
 
-      string jwt = _JWTBuilder.generateToken(user.Id, true);
+      string jwt = _JWTBuilder.generateToken(_dbContext, user.Id, true);
 
       return Created($"info/{user.Username}", new
       {
@@ -122,7 +122,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     returnDict.Add("server_public_ephemeral", serverEphemeral.Public);
 
     // Partial Token to ensure the safety of the protocol
-    string jwt = _JWTBuilder.generateToken(user.Id, false);
+    string jwt = _JWTBuilder.generateToken(_dbContext, user.Id, false);
     returnDict.Add("token", jwt);
 
     return Ok(returnDict);
@@ -141,7 +141,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
       return BadRequest("Error: expected a jsonObject");
     string clientSessionProof = requestValues["proof"];
 
-    User? user = _accessor.GetCurrentUser();
+    User? user = _accessor.GetCurrentUser(HttpContext);
     if (user == null) return Unauthorized("Your session is not saved");
 
     Dictionary<string, string>? loginData = _loginStorage.getEntry(user.Id);
@@ -185,10 +185,10 @@ public partial class UserController(AppDbContext context, IConfiguration configu
 
     Dictionary<string, string> returnDict = new(){
       {"proof", serverSession.Proof},
-      {"token", _JWTBuilder.generateToken(user.Id, true)}
+      {"token", _JWTBuilder.generateToken(_dbContext, user.Id, true)}
     };
 
-    return Ok(serverSession.Proof);
+    return Ok(returnDict);
   }
 
   [HttpGet("info/{username}")]
@@ -215,7 +215,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   [Authorize(Policy = "Authenticated")]
   public ActionResult<JsonArray> GetPrivateChannels(int page)
   {
-    User? user = _accessor.GetCurrentUser();
+    User? user = _accessor.GetCurrentUser(HttpContext);
     if (user == null) return Unauthorized("Your session is not saved");
 
     JsonArray returnArr = [];
@@ -249,7 +249,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   [Authorize(Policy = "Authenticated")]
   public ActionResult EditProfile(User user)
   {
-    User? sessionUser = _accessor.GetCurrentUser();
+    User? sessionUser = _accessor.GetCurrentUser(HttpContext);
     if (sessionUser == null)
       return Unauthorized("Your session is not saved");
 
@@ -267,7 +267,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
       _dbContext.Users.Update(sessionUser);
       _dbContext.SaveChanges();
 
-      string jwt = _JWTBuilder.generateToken(user.Id, true);
+      string jwt = _JWTBuilder.generateToken(_dbContext, user.Id, true);
 
       return Ok(jwt);
     }
@@ -289,7 +289,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   [HttpDelete("delete")]
   public ActionResult RemoveUser(bool removeMessages)
   {
-    User? user = _accessor.GetCurrentUser();
+    User? user = _accessor.GetCurrentUser(HttpContext);
     if (user == null)
       return Unauthorized("Your session is not saved");
     _dbContext.Users.Remove(user);

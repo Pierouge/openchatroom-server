@@ -3,10 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("check")]
-public class CheckController(IJWTBuilder JWTBuilder, UserAccessor accessor) : ControllerBase
+public class CheckController(IJWTBuilder JWTBuilder, UserAccessor accessor, AppDbContext dbContext) : ControllerBase
 {
   private readonly IJWTBuilder _JWTBuilder = JWTBuilder;
   private readonly UserAccessor _accessor = accessor;
+  private readonly AppDbContext _dbContext = dbContext;
 
   [HttpGet]
   public ActionResult answerCheck()
@@ -19,10 +20,10 @@ public class CheckController(IJWTBuilder JWTBuilder, UserAccessor accessor) : Co
   [Authorize(Policy = "Authenticated")]
   public ActionResult checkUser()
   {
-    User? user = _accessor.GetCurrentUser();
+    User? user = _accessor.GetCurrentUser(HttpContext);
     if (user == null) return Unauthorized("Your session is not saved");
 
-    string jwt = _JWTBuilder.generateToken(user.Id, true);
+    string jwt = _JWTBuilder.generateToken(_dbContext, user.Id, true);
 
     return Ok(jwt);
   }

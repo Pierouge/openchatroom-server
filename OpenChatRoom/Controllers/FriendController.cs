@@ -14,7 +14,7 @@ public class FriendRequestController(AppDbContext context, UserAccessor accessor
   [Produces("application/json")]
   public ActionResult<JsonArray> GetFriendRequests()
   {
-    User? user = _accessor.GetCurrentUser();
+    User? user = _accessor.GetCurrentUser(HttpContext);
     if (user == null) return Unauthorized("Your session is not saved");
 
     List<FriendRequest> friendRequests = [];
@@ -28,7 +28,7 @@ public class FriendRequestController(AppDbContext context, UserAccessor accessor
   [Consumes("text/plain")]
   public ActionResult SendFriendRequest(string receiverId)
   {
-    User? author = _accessor.GetCurrentUser();
+    User? author = _accessor.GetCurrentUser(HttpContext);
     if (author == null) return Unauthorized("Your session is not saved");
 
     User? receiver = _context.Users.Where(u => u.Id == receiverId).FirstOrDefault();
@@ -45,7 +45,7 @@ public class FriendRequestController(AppDbContext context, UserAccessor accessor
   [Consumes("text/plain")]
   public ActionResult AcceptFriendRequest(string authorId)
   {
-    User? user = _accessor.GetCurrentUser();
+    User? user = _accessor.GetCurrentUser(HttpContext);
     if (user == null) return Unauthorized("Your session is not saved");
 
     FriendRequest? friendRequest = user.ReceivedRequests.Find(f => f.AuthorId == authorId);
@@ -62,7 +62,7 @@ public class FriendRequestController(AppDbContext context, UserAccessor accessor
   [Consumes("text/plain")]
   public ActionResult RemoveFriendRequest(string friendId)
   {
-    User? user = _accessor.GetCurrentUser();
+    User? user = _accessor.GetCurrentUser(HttpContext);
     if (user == null) return Unauthorized("Your session is not saved");
 
     FriendRequest? friendRequest = user.SentRequests.Find(f => f.ReceiverId == friendId);

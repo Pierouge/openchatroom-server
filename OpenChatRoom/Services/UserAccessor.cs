@@ -1,19 +1,13 @@
 using System.IdentityModel.Tokens.Jwt;
+using Microsoft.AspNetCore.Authorization;
 
-public class UserAccessor
+public class UserAccessor(AppDbContext db)
 {
-  private readonly AppDbContext _db;
-  private readonly IHttpContextAccessor _http;
+  private readonly AppDbContext _db = db;
 
-  public UserAccessor(AppDbContext db, IHttpContextAccessor http)
+  public User? GetCurrentUser(HttpContext context)
   {
-    _db = db;
-    _http = http;
-  }
-
-  public User? GetCurrentUser()
-  {
-    var userId = _http.HttpContext?.User
+    string? userId = context.User
         .FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
 
     if (string.IsNullOrWhiteSpace(userId))
@@ -21,4 +15,16 @@ public class UserAccessor
 
     return _db.Users.FirstOrDefault(u => u.Id == userId);
   }
+
+  public User? GetCurrentUser(AuthorizationHandlerContext context)
+  {
+    string? userId = context.User
+        .FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+    if (string.IsNullOrWhiteSpace(userId))
+      return null;
+
+    return _db.Users.FirstOrDefault(u => u.Id == userId);
+  }
+
 }
