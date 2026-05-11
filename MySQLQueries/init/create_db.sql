@@ -21,10 +21,9 @@ USE `__DB_NAME__`;
 -- Table structure for table `channels`
 --
 
-DROP TABLE IF EXISTS `channels`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `channels` (
+CREATE TABLE IF NOT EXISTS `channels` (
   `id` varchar(32) NOT NULL,
   `name` varchar(64) NOT NULL,
   `server` varchar(32) DEFAULT NULL,
@@ -39,10 +38,9 @@ CREATE TABLE `channels` (
 -- Table structure for table `friends`
 --
 
-DROP TABLE IF EXISTS `friends`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `friends` (
+CREATE TABLE IF NOT EXISTS `friends` (
   `author` varchar(32) NOT NULL,
   `receiver` varchar(32) NOT NULL,
   `is_accepted` tinyint(1) NOT NULL DEFAULT '0',
@@ -57,10 +55,9 @@ CREATE TABLE `friends` (
 -- Table structure for table `messages`
 --
 
-DROP TABLE IF EXISTS `messages`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `messages` (
+CREATE TABLE IF NOT EXISTS `messages` (
   `id` varchar(32) NOT NULL,
   `text` varchar(2048) NOT NULL,
   `time` datetime NOT NULL,
@@ -79,10 +76,9 @@ CREATE TABLE `messages` (
 -- Table structure for table `private_channel_members`
 --
 
-DROP TABLE IF EXISTS `private_channel_members`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `private_channel_members` (
+CREATE TABLE IF NOT EXISTS `private_channel_members` (
   `user` varchar(32) NOT NULL,
   `channel` varchar(32) NOT NULL,
   PRIMARY KEY (`user`,`channel`),
@@ -96,10 +92,9 @@ CREATE TABLE `private_channel_members` (
 -- Table structure for table `refresh_tokens`
 --
 
-DROP TABLE IF EXISTS `refresh_tokens`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `refresh_tokens` (
+CREATE TABLE IF NOT EXISTS `refresh_tokens` (
   `token` varchar(178) NOT NULL,
   `user` varchar(32) NOT NULL,
   `expiryTime` datetime NOT NULL,
@@ -113,10 +108,9 @@ CREATE TABLE `refresh_tokens` (
 -- Table structure for table `server_members`
 --
 
-DROP TABLE IF EXISTS `server_members`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `server_members` (
+CREATE TABLE IF NOT EXISTS `server_members` (
   `user` varchar(32) NOT NULL,
   `server` varchar(32) NOT NULL,
   PRIMARY KEY (`user`,`server`),
@@ -130,10 +124,9 @@ CREATE TABLE `server_members` (
 -- Table structure for table `servers`
 --
 
-DROP TABLE IF EXISTS `servers`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `servers` (
+CREATE TABLE IF NOT EXISTS `servers` (
   `id` varchar(32) NOT NULL,
   `name` varchar(64) NOT NULL,
   PRIMARY KEY (`id`)
@@ -144,10 +137,9 @@ CREATE TABLE `servers` (
 -- Table structure for table `users`
 --
 
-DROP TABLE IF EXISTS `users`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `users` (
+CREATE TABLE IF NOT EXISTS `users` (
   `id` varchar(32) NOT NULL,
   `username` varchar(32) NOT NULL,
   `visibleName` varchar(64) NOT NULL,
