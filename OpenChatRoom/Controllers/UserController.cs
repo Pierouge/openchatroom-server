@@ -267,7 +267,9 @@ public partial class UserController(AppDbContext context, IConfiguration configu
       _dbContext.Users.Update(sessionUser);
       _dbContext.SaveChanges();
 
-      return Ok();
+      string jwt = _JWTBuilder.generateToken(user.Id, true);
+
+      return Ok(jwt);
     }
     catch (DbUpdateException ex)
     {
