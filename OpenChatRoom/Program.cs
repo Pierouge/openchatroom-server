@@ -71,8 +71,7 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy("Authenticated", policy =>
           {
             policy.RequireAuthenticatedUser();
-            policy.RequireClaim("auth", "true");
-            // TODO: Session purge checker here (necessitates session purge DB entries)
+            policy.Requirements.Add(new JwtValidityRequirement());
           });
 
 // Add the LoginStorage Service as a singleton
