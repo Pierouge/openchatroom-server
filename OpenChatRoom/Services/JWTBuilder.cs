@@ -13,8 +13,9 @@ public class JWTBuilder : IJWTBuilder
   private readonly string authority;
   private readonly string audience;
   private readonly TimeSpan defaultLifetime;
+  private readonly AppDbContext dbContext;
 
-  public JWTBuilder(SymmetricSecurityKey jwtKey, IConfiguration configuration)
+  public JWTBuilder(SymmetricSecurityKey jwtKey, IConfiguration configuration, AppDbContext dbContext)
   {
     signingKey = jwtKey;
     authority = configuration.GetSection("Jwt")
@@ -24,6 +25,7 @@ public class JWTBuilder : IJWTBuilder
 
     int days = configuration.GetSection("Jwt").GetValue<int>("LifeTimeDays");
     defaultLifetime = TimeSpan.FromDays(days);
+    this.dbContext = dbContext;
   }
 
   public string generateToken(string userid, bool isAuthenticated = false, IEnumerable<Claim>? extraClaims = null, TimeSpan? lifetime = null)
@@ -40,7 +42,11 @@ public class JWTBuilder : IJWTBuilder
     if (isAuthenticated)
     {
       claims.Add(new Claim("auth", "true"));
-      // TODO: Add an entry to JWT Timestamps (for timeoffset NOW)
+
+      User user = dbContext.Users.FirstOrDefault(u => u.Id == userid)!;
+      user.LastToken = now;
+      dbContext.Users.Update(user);
+      dbContext.SaveChanges();
     }
 
     if (extraClaims != null) claims.AddRange(extraClaims);

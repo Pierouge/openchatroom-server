@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS `channels` (
 CREATE TABLE IF NOT EXISTS `friends` (
   `author` varchar(32) NOT NULL,
   `receiver` varchar(32) NOT NULL,
-  `is_accepted` tinyint(1) NOT NULL DEFAULT '0',
+  `isAccepted` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`author`,`receiver`),
   KEY `friend_receiver_idx` (`receiver`),
   CONSTRAINT `friend_author` FOREIGN KEY (`author`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS `messages` (
   `id` varchar(32) NOT NULL,
   `text` varchar(2048) NOT NULL,
   `time` datetime NOT NULL,
-  `is_modified` tinyint(1) NOT NULL DEFAULT '0',
+  `isModified` tinyint(1) NOT NULL DEFAULT '0',
   `author` varchar(32) NOT NULL,
   `channel` varchar(32) NOT NULL,
   PRIMARY KEY (`id`),
@@ -85,22 +85,6 @@ CREATE TABLE IF NOT EXISTS `private_channel_members` (
   KEY `private_channel_idx` (`channel`),
   CONSTRAINT `private_channel` FOREIGN KEY (`channel`) REFERENCES `channels` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `private_member` FOREIGN KEY (`user`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `refresh_tokens`
---
-
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE IF NOT EXISTS `refresh_tokens` (
-  `token` varchar(178) NOT NULL,
-  `user` varchar(32) NOT NULL,
-  `expiryTime` datetime NOT NULL,
-  PRIMARY KEY (`token`),
-  KEY `refresh_tokens_owner_idx` (`user`),
-  CONSTRAINT `refresh_tokens_owner` FOREIGN KEY (`user`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -146,6 +130,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `verifier` varchar(512) NOT NULL,
   `salt` varchar(512) NOT NULL,
   `isAdmin` tinyint(1) NOT NULL DEFAULT '0',
+  `lastToken` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username_UNIQUE` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

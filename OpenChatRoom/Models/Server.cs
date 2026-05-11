@@ -3,16 +3,16 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 public class Server
 {
-    [Required]
-    [StringLength(32)]
-    [Column("id")]
-    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+  [Required]
+  [StringLength(32)]
+  [Column("id")]
+  public string Id { get; set; } = Guid.NewGuid().ToString("N");
 
-    [Required]
-    [StringLength(64)]
-    [Column("name")]
-    public string Name { get; set; }
+  [Required]
+  [StringLength(64)]
+  [Column("name")]
+  public string Name { get; set; } = null!;
 
-    public List<User> Members { get; } = [];
-    public List<Channel> Channels { get; } = [];
+  public List<User> Members { get; } = [];
+  public List<Channel> Channels { get; } = [];
 }
