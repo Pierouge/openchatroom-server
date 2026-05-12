@@ -14,8 +14,7 @@ public class FriendRequestController(AppDbContext context, UserAccessor accessor
   [Produces("application/json")]
   public ActionResult<JsonArray> GetFriendRequests()
   {
-    User? user = _accessor.GetCurrentUser(HttpContext);
-    if (user == null) return Unauthorized("Your session is not saved");
+    User? user = _accessor.GetCurrentUser(HttpContext)!;
 
     List<FriendRequest> friendRequests = [];
     friendRequests.AddRange(user.SentRequests);
@@ -28,8 +27,7 @@ public class FriendRequestController(AppDbContext context, UserAccessor accessor
   [Consumes("text/plain")]
   public ActionResult SendFriendRequest(string receiverId)
   {
-    User? author = _accessor.GetCurrentUser(HttpContext);
-    if (author == null) return Unauthorized("Your session is not saved");
+    User? author = _accessor.GetCurrentUser(HttpContext)!;
 
     User? receiver = _context.Users.Where(u => u.Id == receiverId).FirstOrDefault();
     if (receiver == null) return NotFound("Could not find such user");
@@ -45,8 +43,7 @@ public class FriendRequestController(AppDbContext context, UserAccessor accessor
   [Consumes("text/plain")]
   public ActionResult AcceptFriendRequest(string authorId)
   {
-    User? user = _accessor.GetCurrentUser(HttpContext);
-    if (user == null) return Unauthorized("Your session is not saved");
+    User? user = _accessor.GetCurrentUser(HttpContext)!;
 
     FriendRequest? friendRequest = user.ReceivedRequests.Find(f => f.AuthorId == authorId);
 
@@ -62,8 +59,7 @@ public class FriendRequestController(AppDbContext context, UserAccessor accessor
   [Consumes("text/plain")]
   public ActionResult RemoveFriendRequest(string friendId)
   {
-    User? user = _accessor.GetCurrentUser(HttpContext);
-    if (user == null) return Unauthorized("Your session is not saved");
+    User? user = _accessor.GetCurrentUser(HttpContext)!;
 
     FriendRequest? friendRequest = user.SentRequests.Find(f => f.ReceiverId == friendId);
     friendRequest ??= user.ReceivedRequests.Find(f => f.AuthorId == friendId);

@@ -215,8 +215,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   [Authorize(Policy = "Authenticated")]
   public ActionResult<JsonArray> GetPrivateChannels(int page)
   {
-    User? user = _accessor.GetCurrentUser(HttpContext);
-    if (user == null) return Unauthorized("Your session is not saved");
+    User user = _accessor.GetCurrentUser(HttpContext)!;
 
     JsonArray returnArr = [];
 
@@ -249,9 +248,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   [Authorize(Policy = "Authenticated")]
   public ActionResult EditProfile(User user)
   {
-    User? sessionUser = _accessor.GetCurrentUser(HttpContext);
-    if (sessionUser == null)
-      return Unauthorized("Your session is not saved");
+    User sessionUser = _accessor.GetCurrentUser(HttpContext)!;
 
     if (!UsernameRegex().IsMatch(user.Username))
     {
@@ -289,9 +286,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   [Authorize(Policy = "Authenticated")]
   public ActionResult TerminateSession()
   {
-    User? user = _accessor.GetCurrentUser(HttpContext);
-    if (user == null)
-      return Unauthorized("Your session is not saved");
+    User user = _accessor.GetCurrentUser(HttpContext)!;
 
     string jti = HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti)!.Value!;
     UserToken userToken = _dbContext.UserTokens.FirstOrDefault(t => t.Id == jti)!;
@@ -320,7 +315,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   [Authorize(Policy = "Authenticated")]
   public ActionResult RemoveUser(bool removeMessages)
   {
-    User? user = _accessor.GetCurrentUser(HttpContext)!;
+    User user = _accessor.GetCurrentUser(HttpContext)!;
 
     _dbContext.Users.Remove(user);
     if (removeMessages)

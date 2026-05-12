@@ -81,6 +81,8 @@ builder.Services.AddAuthorizationBuilder()
 builder.Services.AddSingleton<ILoginStorage, LoginStorage>();
 builder.Services.AddHostedService<LoginStorageCleaner>();
 
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, CustomAuthorizationResultHandler>();
+
 WebApplication app = builder.Build();
 
 // Force usage of HTTPS
