@@ -1,5 +1,4 @@
 using System.Security;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -132,7 +131,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   [Consumes("application/json")]
   [Produces("text/plain")]
   [Authorize]
-  public ActionResult<string> sendSRPM2(JsonObject jsonObject) // Phase 4 of SRP
+  public ActionResult<string> SendSRPM2(JsonObject jsonObject) // Phase 4 of SRP
   {
     Dictionary<string, string>? requestValues = JsonSerializer.Deserialize<
         Dictionary<string, string>
@@ -285,8 +284,23 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     }
   }
 
-  [ValidateAntiForgeryToken]
+  [HttpGet("terminateSession")]
+  [Authorize(Policy = "Authenticated")]
+  public ActionResult TerminateSession()
+  {
+    User? user = _accessor.GetCurrentUser(HttpContext);
+    if (user == null)
+      return Unauthorized("Your session is not saved");
+
+    user.LastToken = DateTime.UtcNow;
+    _dbContext.Users.Update(user);
+    _dbContext.SaveChanges();
+
+    return Ok();
+  }
+
   [HttpDelete("delete")]
+  [Authorize(Policy = "Authenticated")]
   public ActionResult RemoveUser(bool removeMessages)
   {
     User? user = _accessor.GetCurrentUser(HttpContext);
@@ -295,7 +309,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     _dbContext.Users.Remove(user);
     if (removeMessages)
     {
-      List<Message> messages = _dbContext.Messages.Where(m => m.Author == user).ToList();
+      List<Message> messages = [.. _dbContext.Messages.Where(m => m.Author == user)];
       _dbContext.RemoveRange(messages);
     }
     _dbContext.SaveChanges();
