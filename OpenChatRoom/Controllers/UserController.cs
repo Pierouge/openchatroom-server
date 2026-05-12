@@ -292,7 +292,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     if (user == null)
       return Unauthorized("Your session is not saved");
 
-    user.LastToken = DateTime.UtcNow;
+    user.LastTokenPurge = DateTime.UtcNow;
     _dbContext.Users.Update(user);
     _dbContext.SaveChanges();
 

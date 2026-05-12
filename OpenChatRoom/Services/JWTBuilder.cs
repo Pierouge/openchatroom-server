@@ -38,14 +38,7 @@ public class JWTBuilder : IJWTBuilder
     ];
 
     if (isAuthenticated)
-    {
       claims.Add(new Claim("auth", "true"));
-
-      User user = dbContext.Users.FirstOrDefault(u => u.Id == userid)!;
-      user.LastToken = now;
-      dbContext.Users.Update(user);
-      dbContext.SaveChanges();
-    }
 
     if (extraClaims != null) claims.AddRange(extraClaims);
 

@@ -33,8 +33,8 @@ public class User
   [Column("isAdmin")]
   public bool IsAdmin { get; set; } = false;
 
-  [Column("lastToken")]
-  public DateTime? LastToken { get; set; }
+  [Column("lastTokenPurge")]
+  public DateTime? LastTokenPurge { get; set; }
 
   // Set foreign keys here
   public List<Server> Servers { get; } = [];

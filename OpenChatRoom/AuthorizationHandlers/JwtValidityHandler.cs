@@ -21,11 +21,13 @@ public class JwtValidityHandler(UserAccessor accessor) : AuthorizationHandler<Jw
     if (string.IsNullOrWhiteSpace(authClaim) || authClaim != requirement.RequiredAuthValue) return;
 
     // Ensure token is younger or same age as LastToken
+    if (user.LastTokenPurge == null) context.Succeed(requirement);
+
     string? iatString = context.User.FindFirst(JwtRegisteredClaimNames.Iat)?.Value;
     if (!long.TryParse(iatString, out long iatSeconds)) return;
 
     DateTime tokenTime = DateTimeOffset.FromUnixTimeSeconds(iatSeconds).UtcDateTime;
 
-    if (tokenTime >= user.LastToken) context.Succeed(requirement);
+    if (tokenTime >= user.LastTokenPurge) context.Succeed(requirement);
   }
 }

@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `verifier` varchar(512) NOT NULL,
   `salt` varchar(512) NOT NULL,
   `isAdmin` tinyint(1) NOT NULL DEFAULT '0',
-  `lastToken` datetime DEFAULT NULL,
+  `lastTokenPurge` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username_UNIQUE` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
