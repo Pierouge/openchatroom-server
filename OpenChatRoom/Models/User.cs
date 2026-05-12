@@ -33,13 +33,11 @@ public class User
   [Column("isAdmin")]
   public bool IsAdmin { get; set; } = false;
 
-  [Column("lastTokenPurge")]
-  public DateTime? LastTokenPurge { get; set; }
-
   // Set foreign keys here
   public List<Server> Servers { get; } = [];
   public List<Message> Messages { get; } = [];
   public List<Channel> PrivateChannels { get; } = [];
   public List<FriendRequest> SentRequests { get; } = [];
   public List<FriendRequest> ReceivedRequests { get; } = [];
+  public List<UserToken> UserTokens { get; } = [];
 }

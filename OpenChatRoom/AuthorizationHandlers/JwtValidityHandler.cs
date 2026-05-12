@@ -6,9 +6,10 @@ public sealed class JwtValidityRequirement : IAuthorizationRequirement
   public string RequiredAuthValue { get; } = "true";
 }
 
-public class JwtValidityHandler(UserAccessor accessor) : AuthorizationHandler<JwtValidityRequirement>
+public class JwtValidityHandler(UserAccessor accessor, AppDbContext dbContext) : AuthorizationHandler<JwtValidityRequirement>
 {
   private readonly UserAccessor _accessor = accessor;
+  private readonly AppDbContext _dbContext = dbContext;
 
   protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, JwtValidityRequirement requirement)
   {
@@ -20,14 +21,11 @@ public class JwtValidityHandler(UserAccessor accessor) : AuthorizationHandler<Jw
     string? authClaim = context.User.FindFirst("auth")?.Value;
     if (string.IsNullOrWhiteSpace(authClaim) || authClaim != requirement.RequiredAuthValue) return;
 
-    // Ensure token is younger or same age as LastToken
-    if (user.LastTokenPurge == null) context.Succeed(requirement);
+    // Ensure token is registered
+    string? jti = context.User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+    if (string.IsNullOrWhiteSpace(jti)) return;
 
-    string? iatString = context.User.FindFirst(JwtRegisteredClaimNames.Iat)?.Value;
-    if (!long.TryParse(iatString, out long iatSeconds)) return;
-
-    DateTime tokenTime = DateTimeOffset.FromUnixTimeSeconds(iatSeconds).UtcDateTime;
-
-    if (tokenTime >= user.LastTokenPurge) context.Succeed(requirement);
+    UserToken? userToken = _dbContext.UserTokens.FirstOrDefault(t => t.Id == jti);
+    if (userToken != null) context.Succeed(requirement);
   }
 }

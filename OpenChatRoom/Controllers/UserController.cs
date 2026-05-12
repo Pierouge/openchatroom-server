@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Security;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -292,8 +293,24 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     if (user == null)
       return Unauthorized("Your session is not saved");
 
-    user.LastTokenPurge = DateTime.UtcNow;
-    _dbContext.Users.Update(user);
+    string jti = HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti)!.Value!;
+    UserToken userToken = _dbContext.UserTokens.FirstOrDefault(t => t.Id == jti)!;
+
+    _dbContext.UserTokens.Remove(userToken);
+    _dbContext.SaveChanges();
+
+    return Ok();
+  }
+
+  [HttpGet("nukeSessions")]
+  [Authorize(Policy = "Authenticated")]
+  public ActionResult NukeSessions()
+  {
+    User user = _accessor.GetCurrentUser(HttpContext)!;
+
+    List<UserToken> userTokens = [.. _dbContext.UserTokens.Where(t => t.UserId == user.Id)];
+
+    _dbContext.UserTokens.RemoveRange(userTokens);
     _dbContext.SaveChanges();
 
     return Ok();
@@ -303,9 +320,8 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   [Authorize(Policy = "Authenticated")]
   public ActionResult RemoveUser(bool removeMessages)
   {
-    User? user = _accessor.GetCurrentUser(HttpContext);
-    if (user == null)
-      return Unauthorized("Your session is not saved");
+    User? user = _accessor.GetCurrentUser(HttpContext)!;
+
     _dbContext.Users.Remove(user);
     if (removeMessages)
     {

@@ -20,8 +20,7 @@ public class CheckController(IJWTBuilder JWTBuilder, UserAccessor accessor, AppD
   [Authorize(Policy = "Authenticated")]
   public ActionResult checkUser()
   {
-    User? user = _accessor.GetCurrentUser(HttpContext);
-    if (user == null) return Unauthorized("Your session is not saved");
+    User user = _accessor.GetCurrentUser(HttpContext)!;
 
     string jwt = _JWTBuilder.generateToken(_dbContext, user.Id, true);
 

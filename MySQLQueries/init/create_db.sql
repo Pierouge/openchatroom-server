@@ -118,6 +118,23 @@ CREATE TABLE IF NOT EXISTS `servers` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
+-- Table structure for table `user_tokens`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE IF NOT EXISTS `user_tokens` (
+  `id` varchar(32) NOT NULL,
+  `userId` varchar(32) NOT NULL,
+  `validTime` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id_UNIQUE` (`id`),
+  KEY `tokens_userid_idx` (`userId`),
+  CONSTRAINT `tokens_userid` FOREIGN KEY (`userId`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `users`
 --
 
@@ -130,7 +147,6 @@ CREATE TABLE IF NOT EXISTS `users` (
   `verifier` varchar(512) NOT NULL,
   `salt` varchar(512) NOT NULL,
   `isAdmin` tinyint(1) NOT NULL DEFAULT '0',
-  `lastTokenPurge` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username_UNIQUE` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -151,7 +167,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 DELIMITER ;;
 CREATE DEFINER=`root`@`%` PROCEDURE `clean_tokens`()
 BEGIN
-	DELETE FROM refresh_tokens WHERE clean_tokens < NOW() - INTERVAL 1 DAY;
+	DELETE FROM user_tokens WHERE validTime < NOW();
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;

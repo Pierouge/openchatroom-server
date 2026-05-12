@@ -24,9 +24,7 @@ public class ChannelController(AppDbContext context, IConfiguration configuratio
       return NotFound("Such channel was not found");
 
     // Then check if the user has access to such channel
-    User? user = _accessor.GetCurrentUser(HttpContext);
-    if (user == null)
-      return Unauthorized("The user was not found");
+    User user = _accessor.GetCurrentUser(HttpContext)!;
 
     if (ChannelManager.findChannelMembers(channel).Find(u => u == user) == null)
       return Forbid("User does not have access to such channel");

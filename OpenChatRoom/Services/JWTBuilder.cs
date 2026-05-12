@@ -30,15 +30,25 @@ public class JWTBuilder : IJWTBuilder
   {
     DateTime now = DateTime.UtcNow;
 
+    string tokenId = IdGenerator.generateId();
+
     List<Claim> claims =
     [
       new(JwtRegisteredClaimNames.Sub, userid),
-      new(JwtRegisteredClaimNames.Jti, IdGenerator.generateId()),
+      new(JwtRegisteredClaimNames.Jti, tokenId),
       new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
     ];
 
     if (isAuthenticated)
+    {
       claims.Add(new Claim("auth", "true"));
+
+      User user = dbContext.Users.FirstOrDefault(u => u.Id == userid)!;
+
+      UserToken userToken = new(tokenId, user, now);
+      dbContext.UserTokens.Add(userToken);
+      dbContext.SaveChanges();
+    }
 
     if (extraClaims != null) claims.AddRange(extraClaims);
 

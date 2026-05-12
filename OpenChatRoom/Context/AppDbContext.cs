@@ -7,6 +7,7 @@ public class AppDbContext : DbContext
   public DbSet<Channel> Channels { get; set; }
   public DbSet<Message> Messages { get; set; }
   public DbSet<FriendRequest> FriendRequests { get; set; }
+  public DbSet<UserToken> UserTokens { get; set; }
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
