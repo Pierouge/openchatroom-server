@@ -4,6 +4,16 @@ using System.ComponentModel.DataAnnotations.Schema;
 public class User
 {
 
+  public User() { }
+
+  public User(string username, string visibleName, string salt, string verifier)
+  {
+    Username = username;
+    VisibleName = visibleName;
+    Salt = salt;
+    Verifier = verifier;
+  }
+
   [Required]
   [StringLength(32)]
   [Column("id")]

@@ -16,12 +16,17 @@ public class JwtValidityHandler(UserAccessor accessor, AppDbContext dbContext) :
   {
     HttpContext? http = TryGetHttpContext(context);
 
+    if (!context.User.Identity?.IsAuthenticated ?? true)
+    {
+      http?.Items["ErrorMessage"] = "Could not validate the JWT";
+      return;
+    }
+
     // Get user manually, as UserAccessor relies on dependencies not yet built at that point
     User? user = _accessor.GetCurrentUser(context);
     if (user == null)
     {
       http?.Items["ErrorMessage"] = "User not found";
-      http?.Items["ErrorCode"] = 401;
       return;
     }
 
@@ -30,7 +35,6 @@ public class JwtValidityHandler(UserAccessor accessor, AppDbContext dbContext) :
     if (string.IsNullOrWhiteSpace(authClaim) || authClaim != requirement.RequiredAuthValue)
     {
       http?.Items["ErrorMessage"] = "User is not authenticated";
-      http?.Items["ErrorCode"] = 401;
       return;
     }
 
@@ -39,7 +43,6 @@ public class JwtValidityHandler(UserAccessor accessor, AppDbContext dbContext) :
     if (string.IsNullOrWhiteSpace(jti))
     {
       http?.Items["ErrorMessage"] = "Missing the Jti field in the JWT";
-      http?.Items["ErrorCode"] = 400;
       return;
     }
 
@@ -48,7 +51,6 @@ public class JwtValidityHandler(UserAccessor accessor, AppDbContext dbContext) :
     else
     {
       http?.Items["ErrorMessage"] = "This JWT is not registered";
-      http?.Items["ErrorCode"] = 401;
     }
   }
 

@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 
 public interface ILoginStorage
 {
-  public bool addEntry(string key, Dictionary<string, string> entry);
+  public void addEntry(string key, Dictionary<string, string> entry);
   public bool removeEntry(string key);
   public Task cleanDictionaryAsync(TimeSpan delay);
   public Dictionary<string, string>? getEntry(string key);
@@ -11,7 +11,7 @@ public class LoginStorage : ILoginStorage
 {
   private readonly ConcurrentDictionary<string, Dictionary<string, string>> loginDict = [];
 
-  public bool addEntry(string key, Dictionary<string, string> entry)
+  public void addEntry(string key, Dictionary<string, string> entry)
   {
     Dictionary<string, string> dictEntry = entry;
 
@@ -22,7 +22,7 @@ public class LoginStorage : ILoginStorage
 
     dictEntry.Add("time", encoded);
 
-    return loginDict.TryAdd(key, dictEntry);
+    loginDict[key] = dictEntry;
   }
 
   public bool removeEntry(string key)

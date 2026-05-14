@@ -23,23 +23,25 @@ public partial class UserController(AppDbContext context, IConfiguration configu
 
   [HttpPost("create")]
   [Consumes("application/json")]
+  [Produces("application/json")]
   [AllowAnonymous]
-  public ActionResult Create(JsonArray jsonArray)
+  public ActionResult Create(JsonObject jsonObject)
   {
-    if (jsonArray == null)
-      return BadRequest("Invalid request: Expected a JSON array.");
-    if (jsonArray.Count != 2)
-      return BadRequest("Invalid request: Wrong size of the JsonArray");
-    string userString = jsonArray[0]!.ToJsonString();
+    Dictionary<string, string>? requestValues = JsonSerializer.Deserialize<
+        Dictionary<string, string>
+    >(jsonObject);
+    if (requestValues == null)
+      return BadRequest("Error: expected a jsonObject");
 
-    User? user = JsonSerializer.Deserialize<User>(userString);
+    string username = requestValues["username"];
+    string visibleName = requestValues["visibleName"];
+    string salt = requestValues["salt"];
+    string verifier = requestValues["verifier"];
 
-    // Check type of input
-    if (user == null)
-      return BadRequest("Invalid request: Expected userdata first.");
+    if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(visibleName) || string.IsNullOrWhiteSpace(salt) || string.IsNullOrWhiteSpace(verifier))
+      return BadRequest("Error: expected fields missing");
 
-    user.IsAdmin = false; // Change to be sure, to counter the funny hacked client
-    user.Id = IdGenerator.generateId(); // Change to make sure that the user has an id
+    User user = new(username, visibleName, salt, verifier);
 
     // Check if user already exists
     User? existingUser = _dbContext
@@ -62,10 +64,10 @@ public partial class UserController(AppDbContext context, IConfiguration configu
 
       return Created($"info/{user.Username}", new
       {
-        user.Id,
-        user.Username,
-        user.VisibleName,
-        user.IsAdmin,
+        userId = user.Id,
+        username = user.Username,
+        visibleName = user.VisibleName,
+        isAdmin = user.IsAdmin,
         token = jwt
       });
     }
@@ -87,11 +89,24 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     }
   }
 
-  [HttpGet("getSRPInfo/{username}/{clientEphemeralPublic}")]
+  [HttpPost("srp/1")]
+  [Consumes("application/json")]
   [Produces("application/json")]
   [AllowAnonymous]
-  public ActionResult<JsonObject> GetSRPInfo(string userName, string clientEphemeralPublic) // Phase 2 of SRP Handshake
+  public ActionResult<JsonObject> GetSRPInfo(JsonObject jsonObject) // Phase 2 of SRP Handshake
   {
+    Dictionary<string, string>? requestValues = JsonSerializer.Deserialize<
+        Dictionary<string, string>
+    >(jsonObject);
+    if (requestValues == null)
+      return BadRequest("Error: expected a jsonObject");
+
+    string userName = requestValues["username"];
+    string clientEphemeralPublic = requestValues["client_public_ephemeral"];
+
+    if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(clientEphemeralPublic))
+      return BadRequest("Error: expected fields missing");
+
     //First get info about the current user (check if he exists)
     User? user = _dbContext.Users.Where(u => u.Username == userName).FirstOrDefault();
     if (user == null)
@@ -113,8 +128,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
         {"verifier", verifier}
     };
 
-    if (!_loginStorage.addEntry(user.Id, localData))
-      return Problem("Unable to add login data to secure session");
+    _loginStorage.addEntry(user.Id, localData);
 
     // Generates the Response JSON
     Dictionary<string, string> returnDict = [];
@@ -128,9 +142,9 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     return Ok(returnDict);
   }
 
-  [HttpPost("srp-m2")]
+  [HttpPost("srp/2")]
   [Consumes("application/json")]
-  [Produces("text/plain")]
+  [Produces("application/json")]
   [Authorize]
   public ActionResult<string> SendSRPM2(JsonObject jsonObject) // Phase 4 of SRP
   {
@@ -140,6 +154,9 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     if (requestValues == null)
       return BadRequest("Error: expected a jsonObject");
     string clientSessionProof = requestValues["proof"];
+
+    if (string.IsNullOrWhiteSpace(clientSessionProof))
+      return BadRequest("Error: expected a client session proof");
 
     User? user = _accessor.GetCurrentUser(HttpContext);
     if (user == null) return Unauthorized("Your session is not saved");
@@ -311,7 +328,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     return Ok();
   }
 
-  [HttpDelete("delete")]
+  [HttpDelete()]
   [Authorize(Policy = "Authenticated")]
   public ActionResult RemoveUser(bool removeMessages)
   {

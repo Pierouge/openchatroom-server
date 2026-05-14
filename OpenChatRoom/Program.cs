@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -40,7 +41,7 @@ builder.Services.AddSingleton(jwtKey);
 builder
     .Services.AddAuthentication()
     .AddJwtBearer(
-        "user",
+        JwtBearerDefaults.AuthenticationScheme,
         jwtOptions =>
         {
           // jwtOptions.MetadataAddress = builder.Configuration["Api:MetadataAddress"];
@@ -55,7 +56,13 @@ builder
           jwtOptions.TokenValidationParameters = new TokenValidationParameters
           {
             ValidateIssuer = true,
+            ValidIssuer = builder
+              .Configuration.GetSection("Jwt")
+              .GetValue<string>("Issuer"),
             ValidateAudience = true,
+            ValidAudience = builder
+              .Configuration.GetSection("Jwt")
+              .GetValue<string>("Audience"),
             ValidateIssuerSigningKey = true,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(1),

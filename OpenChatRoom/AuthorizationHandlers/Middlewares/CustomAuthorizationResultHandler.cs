@@ -11,30 +11,18 @@ public class CustomAuthorizationResultHandler : IAuthorizationMiddlewareResultHa
       AuthorizationPolicy policy,
       PolicyAuthorizationResult result)
   {
-    // Authorization did not succeed → normally 401
-    if (result.Challenged || result.Forbidden)
+    // JwtValidityRequirement did not succeed
+    if (policy.Requirements.Any(r => r is JwtValidityRequirement) && result.Challenged)
     {
-      int status = 401;
-
-      if (result.Forbidden) status = 403;
-
-      if (httpContext.Items.TryGetValue("ErrorCode", out var codeObj) &&
-          codeObj is int customCode)
-      {
-        status = customCode;
-      }
-
-      httpContext.Response.StatusCode = status;
+      httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
       httpContext.Response.ContentType = "text/plain";
 
-      if (httpContext.Items.TryGetValue("ErrorMessage", out var msg) && msg is string msgString)
-      {
-        await httpContext.Response.WriteAsync(msgString);
-        return;
-      }
+      string responseMsg = "Unauthorized";
 
-      if (result.Challenged) await httpContext.Response.WriteAsync("Unauthorized");
-      else await httpContext.Response.WriteAsync("Forbidden");
+      if (httpContext.Items.TryGetValue("ErrorMessage", out var msg) && msg is string msgString)
+        responseMsg = string.Concat(responseMsg, ": ", msgString);
+
+      await httpContext.Response.WriteAsync(responseMsg);
       return;
     }
 

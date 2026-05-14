@@ -58,6 +58,7 @@ services:
       - Jwt__KeyFile=/app/jwt-key.txt
       - Jwt__Authority=${JwtAuthority}
       - Jwt__Audience=${JwtAudience}
+      - Jwt__Issuer=${JwtIssuer}
       - Jwt__LifeTimeDays=${JwtLifetimeDays}
       # Encryptor
       - Encryptor__KeyFile=/app/message-key.txt
