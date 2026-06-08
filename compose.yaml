@@ -40,6 +40,8 @@ services:
       "
 
     volumes:
+      - type: tmpfs
+        target: /var/lib/mysql
       - ${DB_INIT_SQL_PATH}:/sql:ro
 
   server:
