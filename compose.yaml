@@ -27,6 +27,11 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
     entrypoint: >
       sh -c "
+        if mysql -h db -P ${DB_PORT} -u root -p${DB_ROOT_PASSWORD} -e 'USE ${DB_NAME}; SHOW TABLES;' 2>/dev/null | grep -q .; then
+          echo 'Database already initialized. Skipping init scripts.'
+          exit 0
+        fi
+
         sed 's/__DB_NAME__/${DB_NAME}/g' /sql/create_db.sql | mysql -h db -P ${DB_PORT} -u root -p${DB_ROOT_PASSWORD}
 
         sed -e 's/__DB_NAME__/${DB_NAME}/g' -e 's/__DB_USER__/${DB_USER}/g' -e 's/__DB_PASSWORD__/${DB_PASSWORD}/g' /sql/create_user.sql | mysql -h db -P ${DB_PORT} -u root -p${DB_ROOT_PASSWORD} ${DB_NAME}
@@ -59,7 +64,7 @@ services:
       - Jwt__Authority=${JwtAuthority}
       - Jwt__Audience=${JwtAudience}
       - Jwt__Issuer=${JwtIssuer}
-      - Jwt__LifeTimeDays=${JwtLifetimeDays}
+      - Jwt__LifeTimeMinutes=${JwtLifetimeMinutes}
       # Encryptor
       - Encryptor__KeyFile=/app/message-key.txt
       # User Config info

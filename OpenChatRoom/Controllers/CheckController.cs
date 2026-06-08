@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -20,10 +21,21 @@ public class CheckController(IJWTBuilder JWTBuilder, UserAccessor accessor, AppD
   [Authorize(Policy = "Authenticated")]
   public ActionResult checkUser()
   {
+    return Ok();
+  }
+
+  [HttpGet]
+  [Route("refresh")]
+  [Authorize(Policy = "AllowExpired")]
+  public ActionResult<string> refreshToken()
+  {
     User user = _accessor.GetCurrentUser(HttpContext)!;
 
-    string jwt = _JWTBuilder.generateToken(_dbContext, user.Id, true);
+    string jti = HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti)!.Value!;
+    UserToken userToken = _dbContext.UserTokens.FirstOrDefault(t => t.Id == jti)!;
 
-    return Ok(jwt);
+    _dbContext.UserTokens.Remove(userToken);
+
+    return Ok(_JWTBuilder.generateToken(_dbContext, user.Id, true));
   }
 }

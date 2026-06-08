@@ -26,8 +26,8 @@ builder.Services.AddCors(options =>
         policy
               .SetIsOriginAllowed(_ => true) // To allow any origin
               .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+              .AllowAnyMethod();
+        // .AllowCredentials(); -> Not needed as no cookie setup
       }
   );
 });
@@ -64,7 +64,8 @@ builder
               .Configuration.GetSection("Jwt")
               .GetValue<string>("Audience"),
             ValidateIssuerSigningKey = true,
-            ValidateLifetime = true,
+            ValidateLifetime = false,
+            ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
             ClockSkew = TimeSpan.FromMinutes(1),
             IssuerSigningKey = jwtKey
           };
@@ -74,11 +75,23 @@ builder
     );
 
 builder.Services.AddSingleton<IJWTBuilder, JWTBuilder>();
-
 builder.Services.AddScoped<IAuthorizationHandler, JwtValidityHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, TokenLifetimeHandler>();
 
 builder.Services.AddAuthorizationBuilder()
+    .SetDefaultPolicy(
+        new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .AddRequirements(new TokenLifetimeRequirement())
+            .Build()
+        )
     .AddPolicy("Authenticated", policy =>
+          {
+            policy.RequireAuthenticatedUser();
+            policy.Requirements.Add(new JwtValidityRequirement());
+            policy.Requirements.Add(new TokenLifetimeRequirement());
+          })
+    .AddPolicy("AllowExpired", policy =>
           {
             policy.RequireAuthenticatedUser();
             policy.Requirements.Add(new JwtValidityRequirement());

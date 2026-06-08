@@ -24,6 +24,6 @@ public class Channel
 
   public List<Message> Messages { get; } = [];
 
-  public List<User> PrivateChannelMembers { get; } = [];
+  public List<User> Members { get; } = [];
 }
 

@@ -22,8 +22,8 @@ public class JWTBuilder : IJWTBuilder
     audience = configuration.GetSection("Jwt")
               .GetValue<string>("Audience")!;
 
-    int days = configuration.GetSection("Jwt").GetValue<int>("LifeTimeDays");
-    defaultLifetime = TimeSpan.FromDays(days);
+    int minutes = configuration.GetSection("Jwt").GetValue<int>("LifeTimeMinutes");
+    defaultLifetime = TimeSpan.FromMinutes(minutes);
   }
 
   public string generateToken(AppDbContext dbContext, string userid, bool isAuthenticated = false, IEnumerable<Claim>? extraClaims = null, TimeSpan? lifetime = null)
@@ -45,7 +45,7 @@ public class JWTBuilder : IJWTBuilder
 
       User user = dbContext.Users.FirstOrDefault(u => u.Id == userid)!;
 
-      UserToken userToken = new(tokenId, user, now);
+      UserToken userToken = new(tokenId, user, now.Add(lifetime ?? defaultLifetime));
       dbContext.UserTokens.Add(userToken);
       dbContext.SaveChanges();
     }

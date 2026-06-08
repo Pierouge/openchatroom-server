@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -29,15 +30,22 @@ public class ChannelController(AppDbContext context, IConfiguration configuratio
     if (ChannelManager.findChannelMembers(channel).Find(u => u == user) == null)
       return Forbid("User does not have access to such channel");
 
-    // Finally return the messages
-    return Ok(
-        ChannelManager.getChannelMessages(
+    List<User> users = ChannelManager.findChannelMembers(channel);
+
+    List<Message> messages = ChannelManager.getChannelMessages(
             _context,
             channel,
             limit: configurationSection.GetValue<int>("MessageCountPerRequest"),
             page: page
-        )
-    );
+        );
+
+    Dictionary<string, string> returnDict = new(){
+      { "users", JsonSerializer.Serialize(users)},
+      {"messages", JsonSerializer.Serialize(messages)}
+    };
+
+    // Finally return the messages and users
+    return Ok(returnDict);
   }
 }
 

@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS `messages` (
 
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE IF NOT EXISTS `private_channel_members` (
+CREATE TABLE IF NOT EXISTS `channel_members` (
   `user` varchar(32) NOT NULL,
   `channel` varchar(32) NOT NULL,
   PRIMARY KEY (`user`,`channel`),
@@ -167,7 +167,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 DELIMITER ;;
 CREATE DEFINER=`root`@`%` PROCEDURE `clean_tokens`()
 BEGIN
-	DELETE FROM user_tokens WHERE validTime < NOW();
+	DELETE FROM user_tokens WHERE validTime < NOW() + INTERVAL 15 DAY;
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;

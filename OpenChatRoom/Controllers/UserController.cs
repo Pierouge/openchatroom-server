@@ -241,7 +241,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     List<Channel> channels =
     [
         .. _dbContext
-                .Channels.Where(c => c.PrivateChannelMembers.Any(m => m.Id == user.Id))
+                .Channels.Where(c => c.Members.Any(m => m.Id == user.Id))
                 .OrderByDescending(c => c.LastMessage)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize),
@@ -256,6 +256,30 @@ public partial class UserController(AppDbContext context, IConfiguration configu
                 { "LastMessage", channel.LastMessage.ToString() },
             };
       returnArr.Add(dict);
+    }
+
+    return Ok(returnArr);
+  }
+
+  [HttpGet("servers")]
+  [Authorize(Policy = "Authenticated")]
+  public ActionResult<JsonArray> GetChannels()
+  {
+    User user = _accessor.GetCurrentUser(HttpContext)!;
+
+    JsonArray returnArr = [];
+
+
+    List<Server> servers = [
+      .. _dbContext.Servers.Where(s => s.Members.Any(m => m.Id == user.Id))
+    ];
+
+    foreach (Server server in servers)
+    {
+      Dictionary<string, string> dict = new(){
+        {"Id", server.Id},
+        {"Name", server.Name}
+      };
     }
 
     return Ok(returnArr);
