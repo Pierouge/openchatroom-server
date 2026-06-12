@@ -79,7 +79,7 @@ public class JWTBuilder : IJWTBuilder
           audience: audience,
           claims: refreshClaims,
           notBefore: now,
-          expires: now.Add(lifetime ?? defaultLifetime),
+          expires: now.Add(TimeSpan.FromDays(15)), // TODO: Implement Config file
           signingCredentials: new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256)
           );
       return new(handler.WriteToken(token), handler.WriteToken(refreshToken));

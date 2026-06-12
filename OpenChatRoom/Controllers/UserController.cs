@@ -220,12 +220,10 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     }
   }
 
-  [HttpGet("terminateSession")]
+  [HttpDelete("terminateSession")]
   [Authorize(Policy = "Authenticated")]
   public ActionResult TerminateSession()
   {
-    User user = _accessor.GetCurrentUser(HttpContext)!;
-
     string jti = HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti)!.Value!;
     UserToken userToken = _dbContext.UserTokens.FirstOrDefault(t => t.Id == jti)!;
 
@@ -235,7 +233,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     return Ok();
   }
 
-  [HttpGet("nukeSessions")]
+  [HttpDelete("nukeSessions")]
   [Authorize(Policy = "Authenticated")]
   public ActionResult NukeSessions()
   {
