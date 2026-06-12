@@ -14,6 +14,7 @@ public class JWTBuilder : IJWTBuilder
   private readonly string authority;
   private readonly string audience;
   private readonly TimeSpan defaultLifetime;
+  private readonly TimeSpan defaultRefreshLifetime;
 
   public JWTBuilder(SymmetricSecurityKey jwtKey, IConfiguration configuration)
   {
@@ -25,6 +26,9 @@ public class JWTBuilder : IJWTBuilder
 
     int minutes = configuration.GetSection("Jwt").GetValue<int>("LifeTimeMinutes");
     defaultLifetime = TimeSpan.FromMinutes(minutes);
+
+    int days = configuration.GetSection("Jwt").GetValue<int>("RefreshLifeTimeDays");
+    defaultRefreshLifetime = TimeSpan.FromDays(minutes);
   }
 
   public Result GenerateToken(AppDbContext dbContext, string userid, bool isAuthenticated = false, IEnumerable<Claim>? extraClaims = null, TimeSpan? lifetime = null)
@@ -79,7 +83,7 @@ public class JWTBuilder : IJWTBuilder
           audience: audience,
           claims: refreshClaims,
           notBefore: now,
-          expires: now.Add(TimeSpan.FromDays(15)), // TODO: Implement Config file
+          expires: now.Add(defaultRefreshLifetime),
           signingCredentials: new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256)
           );
       return new(handler.WriteToken(token), handler.WriteToken(refreshToken));
