@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 public class Server
 {
@@ -13,6 +14,9 @@ public class Server
   [Column("name")]
   public string Name { get; set; } = null!;
 
+  [JsonIgnore]
   public List<User> Members { get; } = [];
+
+  [JsonIgnore]
   public List<Channel> Channels { get; } = [];
 }

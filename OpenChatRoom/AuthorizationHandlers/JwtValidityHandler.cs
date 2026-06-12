@@ -2,9 +2,11 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-public sealed class JwtValidityRequirement : IAuthorizationRequirement
+public sealed class JwtValidityRequirement(bool useRefreshTokens) : IAuthorizationRequirement
 {
   public string RequiredAuthValue { get; } = "true";
+
+  public bool UseRefreshTokens { get; } = useRefreshTokens;
 }
 
 public class JwtValidityHandler(UserAccessor accessor, AppDbContext dbContext) : AuthorizationHandler<JwtValidityRequirement>
@@ -32,16 +34,16 @@ public class JwtValidityHandler(UserAccessor accessor, AppDbContext dbContext) :
       return;
     }
 
-    // Ensure auth = true
+    // Ensure auth = true -> Only for access tokens
     string? authClaim = context.User.FindFirst("auth")?.Value;
-    if (string.IsNullOrWhiteSpace(authClaim) || authClaim != requirement.RequiredAuthValue)
+    if ((string.IsNullOrWhiteSpace(authClaim) || authClaim != requirement.RequiredAuthValue) && !requirement.UseRefreshTokens)
     {
       http?.Items["ErrorMessage"] = "User is not authenticated";
       context.Fail();
       return;
     }
 
-    // Ensure token is registered
+    // Ensure the token has a JTI field
     string? jti = context.User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
     if (string.IsNullOrWhiteSpace(jti))
     {
@@ -50,13 +52,21 @@ public class JwtValidityHandler(UserAccessor accessor, AppDbContext dbContext) :
       return;
     }
 
-    UserToken? userToken = _dbContext.UserTokens.FirstOrDefault(t => t.Id == jti);
-    if (userToken != null) context.Succeed(requirement);
+    // Ensure token is registered
+    UserToken? userToken;
+
+    if (requirement.UseRefreshTokens)
+      userToken = _dbContext.UserTokens.FirstOrDefault(t => t.RefreshId == jti);
     else
+      userToken = _dbContext.UserTokens.FirstOrDefault(t => t.Id == jti);
+
+    if (userToken != null)
     {
-      http?.Items["ErrorMessage"] = "This JWT is not registered";
-      context.Fail();
+      context.Succeed(requirement);
+      return;
     }
+    http?.Items["ErrorMessage"] = "This JWT is not registered";
+    context.Fail();
   }
 
   private static HttpContext? TryGetHttpContext(AuthorizationHandlerContext context)

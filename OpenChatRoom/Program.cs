@@ -64,7 +64,7 @@ builder
               .Configuration.GetSection("Jwt")
               .GetValue<string>("Audience"),
             ValidateIssuerSigningKey = true,
-            ValidateLifetime = false,
+            ValidateLifetime = true,
             ValidAlgorithms = [SecurityAlgorithms.HmacSha256],
             ClockSkew = TimeSpan.FromMinutes(1),
             IssuerSigningKey = jwtKey
@@ -76,26 +76,18 @@ builder
 
 builder.Services.AddSingleton<IJWTBuilder, JWTBuilder>();
 builder.Services.AddScoped<IAuthorizationHandler, JwtValidityHandler>();
-builder.Services.AddScoped<IAuthorizationHandler, TokenLifetimeHandler>();
 
 builder.Services.AddAuthorizationBuilder()
-    .SetDefaultPolicy(
-        new AuthorizationPolicyBuilder()
-            .RequireAuthenticatedUser()
-            .AddRequirements(new TokenLifetimeRequirement())
-            .Build()
-        )
     .AddPolicy("Authenticated", policy =>
           {
             policy.RequireAuthenticatedUser();
-            policy.Requirements.Add(new JwtValidityRequirement());
-            policy.Requirements.Add(new TokenLifetimeRequirement());
+            policy.Requirements.Add(new JwtValidityRequirement(false));
           })
-    .AddPolicy("AllowExpired", policy =>
-          {
-            policy.RequireAuthenticatedUser();
-            policy.Requirements.Add(new JwtValidityRequirement());
-          });
+    .AddPolicy("RefreshTokens", policy =>
+    {
+      policy.RequireAuthenticatedUser();
+      policy.Requirements.Add(new JwtValidityRequirement(true));
+    });
 
 // Add the LoginStorage Service as a singleton
 builder.Services.AddSingleton<ILoginStorage, LoginStorage>();
@@ -114,6 +106,8 @@ app.UseCors("AllowWasmApp");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// TODO: USE SignalR for messages (instead of websockets)
 
 app.MapControllers();
 app.Run();

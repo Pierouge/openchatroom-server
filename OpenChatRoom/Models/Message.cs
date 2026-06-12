@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 public class Message
 {
 
@@ -27,11 +28,15 @@ public class Message
   [StringLength(32)]
   [Column("author")]
   public string AuthorId { get; set; } = null!;
+
+  [JsonIgnore]
   public User Author { get; set; } = null!;
 
   [Required]
   [StringLength(32)]
   [Column("channel")]
   public string ChannelId { get; set; } = null!;
+
+  [JsonIgnore]
   public Channel Channel { get; set; } = null!;
 }

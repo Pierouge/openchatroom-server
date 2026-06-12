@@ -11,7 +11,7 @@ public class CheckController(IJWTBuilder JWTBuilder, UserAccessor accessor, AppD
   private readonly AppDbContext _dbContext = dbContext;
 
   [HttpGet]
-  public ActionResult answerCheck()
+  public ActionResult AnswerCheck()
   {
     return Ok();
   }
@@ -19,23 +19,23 @@ public class CheckController(IJWTBuilder JWTBuilder, UserAccessor accessor, AppD
   [HttpGet]
   [Route("auth")]
   [Authorize(Policy = "Authenticated")]
-  public ActionResult checkUser()
+  public ActionResult CheckUser()
   {
     return Ok();
   }
 
   [HttpGet]
   [Route("refresh")]
-  [Authorize(Policy = "AllowExpired")]
-  public ActionResult<string> refreshToken()
+  [Authorize(Policy = "RefreshTokens")]
+  public ActionResult<TokenPair> RefreshToken()
   {
     User user = _accessor.GetCurrentUser(HttpContext)!;
 
     string jti = HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti)!.Value!;
-    UserToken userToken = _dbContext.UserTokens.FirstOrDefault(t => t.Id == jti)!;
+    UserToken userToken = _dbContext.UserTokens.FirstOrDefault(t => t.RefreshId == jti)!;
 
     _dbContext.UserTokens.Remove(userToken);
 
-    return Ok(_JWTBuilder.generateToken(_dbContext, user.Id, true));
+    return Ok(TokenPair.FromJWTServiceResult(_JWTBuilder.GenerateToken(_dbContext, user.Id, true)));
   }
 }

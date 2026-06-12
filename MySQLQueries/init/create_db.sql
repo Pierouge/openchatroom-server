@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS `servers` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE IF NOT EXISTS `user_tokens` (
   `id` varchar(32) NOT NULL,
+  `refreshId` varchar(32) NOT NULL,
   `userId` varchar(32) NOT NULL,
   `validTime` datetime NOT NULL,
   PRIMARY KEY (`id`),
@@ -167,7 +168,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 DELIMITER ;;
 CREATE DEFINER=`root`@`%` PROCEDURE `clean_tokens`()
 BEGIN
-	DELETE FROM user_tokens WHERE validTime < NOW() + INTERVAL 15 DAY;
+	DELETE FROM user_tokens WHERE validTime < NOW();
 END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;

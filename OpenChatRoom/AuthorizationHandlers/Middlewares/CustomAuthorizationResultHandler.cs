@@ -12,7 +12,7 @@ public class CustomAuthorizationResultHandler : IAuthorizationMiddlewareResultHa
       PolicyAuthorizationResult result)
   {
     // JwtValidityRequirement did not succeed
-    if (policy.Requirements.Any(r => r is JwtValidityRequirement or TokenLifetimeRequirement) && (result.Challenged || result.Forbidden))
+    if (policy.Requirements.Any(r => r is JwtValidityRequirement) && (result.Challenged || result.Forbidden))
     {
       httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
       httpContext.Response.ContentType = "text/plain";

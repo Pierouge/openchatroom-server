@@ -1,8 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -25,23 +22,9 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   [Consumes("application/json")]
   [Produces("application/json")]
   [AllowAnonymous]
-  public ActionResult Create(JsonObject jsonObject)
+  public ActionResult<UserControllerRecords.CreateResult> Create([FromBody] UserControllerRecords.CreateUserRequest requestBody)
   {
-    Dictionary<string, string>? requestValues = JsonSerializer.Deserialize<
-        Dictionary<string, string>
-    >(jsonObject);
-    if (requestValues == null)
-      return BadRequest("Error: expected a jsonObject");
-
-    string username = requestValues["username"];
-    string visibleName = requestValues["visibleName"];
-    string salt = requestValues["salt"];
-    string verifier = requestValues["verifier"];
-
-    if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(visibleName) || string.IsNullOrWhiteSpace(salt) || string.IsNullOrWhiteSpace(verifier))
-      return BadRequest("Error: expected fields missing");
-
-    User user = new(username, visibleName, salt, verifier);
+    User user = new(requestBody.Username, requestBody.VisibleName, requestBody.Salt, requestBody.Verifier);
 
     // Check if user already exists
     User? existingUser = _dbContext
@@ -50,26 +33,18 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     if (existingUser != null)
       return Conflict("Username already exists.");
 
-    // Check if the username is valid
-    if (!UsernameRegex().IsMatch(user.Username))
-      return BadRequest("Invalid request: Username possess illegal characters");
-
     // Check if the data sent respects pre-set rules in DB
     try
     {
       _dbContext.Users.Add(user);
       _dbContext.SaveChanges();
 
-      string jwt = _JWTBuilder.generateToken(_dbContext, user.Id, true);
+      (string jwt, string? refreshJwt) = _JWTBuilder.GenerateToken(_dbContext, user.Id, true);
 
-      return Created($"info/{user.Username}", new
-      {
-        userId = user.Id,
-        username = user.Username,
-        visibleName = user.VisibleName,
-        isAdmin = user.IsAdmin,
-        token = jwt
-      });
+      return Created($"info/{user.Username}", new UserControllerRecords.CreateResult(
+        user.GetInfo(),
+        new TokenPair(jwt, refreshJwt!)
+      ));
     }
     catch (DbUpdateException ex)
     {
@@ -93,22 +68,11 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   [Consumes("application/json")]
   [Produces("application/json")]
   [AllowAnonymous]
-  public ActionResult<JsonObject> GetSRPInfo(JsonObject jsonObject) // Phase 2 of SRP Handshake
+  public ActionResult<UserControllerRecords.SrpStep2Response> GetSRPInfo([FromBody] UserControllerRecords.SrpStep1Request requestBody) // Phase 2 of SRP Handshake
   {
-    Dictionary<string, string>? requestValues = JsonSerializer.Deserialize<
-        Dictionary<string, string>
-    >(jsonObject);
-    if (requestValues == null)
-      return BadRequest("Error: expected a jsonObject");
-
-    string userName = requestValues["username"];
-    string clientEphemeralPublic = requestValues["client_public_ephemeral"];
-
-    if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(clientEphemeralPublic))
-      return BadRequest("Error: expected fields missing");
 
     //First get info about the current user (check if he exists)
-    User? user = _dbContext.Users.Where(u => u.Username == userName).FirstOrDefault();
+    User? user = _dbContext.Users.Where(u => u.Username == requestBody.Username).FirstOrDefault();
     if (user == null)
       return NotFound("Impossible to find such user.");
 
@@ -119,76 +83,47 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     SrpEphemeral serverEphemeral = new SrpServer().GenerateEphemeral(verifier);
 
     // Stores the server private Ephemeral and the client public ephemeral in the loginStorage 
-    Dictionary<string, string> localData = new()
-    {
-        {"server_secret_ephemeral", serverEphemeral.Secret},
-        {"client_public_ephemeral", clientEphemeralPublic},
-        {"username", userName},
-        {"salt", salt},
-        {"verifier", verifier}
-    };
+
+    LoginStorage.Data localData = new(
+        serverEphemeral.Secret,
+        requestBody.ClientEphemeralPublic,
+        salt,
+        verifier
+    );
 
     _loginStorage.addEntry(user.Id, localData);
 
-    // Generates the Response JSON
-    Dictionary<string, string> returnDict = [];
-    returnDict.Add("salt", salt);
-    returnDict.Add("server_public_ephemeral", serverEphemeral.Public);
-
     // Partial Token to ensure the safety of the protocol
-    string jwt = _JWTBuilder.generateToken(_dbContext, user.Id, false);
-    returnDict.Add("token", jwt);
+    string jwt = _JWTBuilder.GenerateToken(_dbContext, user.Id, false).Token;
 
-    return Ok(returnDict);
+    return Ok(new UserControllerRecords.SrpStep2Response(salt, serverEphemeral.Public, jwt));
   }
 
   [HttpPost("srp/2")]
   [Consumes("application/json")]
   [Produces("application/json")]
   [Authorize]
-  public ActionResult<string> SendSRPM2(JsonObject jsonObject) // Phase 4 of SRP
+  public ActionResult<UserControllerRecords.SrpStep4Response> SendSRPM2([FromBody] string clientSessionProof) // Phase 4 of SRP
   {
-    Dictionary<string, string>? requestValues = JsonSerializer.Deserialize<
-        Dictionary<string, string>
-    >(jsonObject);
-    if (requestValues == null)
-      return BadRequest("Error: expected a jsonObject");
-    string clientSessionProof = requestValues["proof"];
-
     if (string.IsNullOrWhiteSpace(clientSessionProof))
       return BadRequest("Error: expected a client session proof");
 
     User? user = _accessor.GetCurrentUser(HttpContext);
     if (user == null) return Unauthorized("Your session is not saved");
 
-    Dictionary<string, string>? loginData = _loginStorage.getEntry(user.Id);
+    LoginStorage.Data? loginData = _loginStorage.getEntry(user.Id);
     if (loginData == null) return Unauthorized("The session has not been saved.");
-
-    // Get back data from phase 2
-    string serverEphemeralSecret = loginData["server_secret_ephemeral"];
-    string clientPublicEphemeral = loginData["client_public_ephemeral"];
-    string verifier = loginData["verifier"];
-    string salt = loginData["salt"];
-
-    // Derive Server Session
-    if (
-        serverEphemeralSecret == null
-        || clientPublicEphemeral == null
-        || verifier == null
-        || salt == null
-    )
-      return Unauthorized("The session has not been saved.");
 
     SrpServer server = new();
     SrpSession serverSession;
     try
     {
       serverSession = server.DeriveSession(
-          serverEphemeralSecret,
-          clientPublicEphemeral,
-          salt,
+          loginData.ServerSecretEphemeral,
+          loginData.ClientPublicEphemeral,
+          loginData.Salt,
           user.Username,
-          verifier,
+          loginData.Verifier,
           clientSessionProof
       );
     }
@@ -200,41 +135,32 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     // Clean the Data
     _loginStorage.removeEntry(user.Id);
 
-    Dictionary<string, string> returnDict = new(){
-      {"proof", serverSession.Proof},
-      {"token", _JWTBuilder.generateToken(_dbContext, user.Id, true)}
-    };
-
-    return Ok(returnDict);
+    return Ok(new UserControllerRecords.SrpStep4Response(serverSession.Proof,
+          TokenPair.FromJWTServiceResult(_JWTBuilder.GenerateToken(_dbContext, user.Id, true))));
   }
 
   [HttpGet("info/{username}")]
   [Produces("application/json")]
   [Authorize(Policy = "Authenticated")]
-  public ActionResult<JsonObject> GetUserInfo(string username)
+  public ActionResult<User.UserInfo> GetUserInfo(string username)
   {
+
     if (string.IsNullOrEmpty(username))
-      return BadRequest("Missing an id");
+      return BadRequest("Missing a userid");
+
     User? user = _dbContext.Users.Where(u => u.Username == username).FirstOrDefault();
+
     if (user == null)
       return NotFound("Such user does not exist");
-    Dictionary<string, string> returnDict = new()
-        {
-            { "Id", user.Id },
-            { "Username", user.Username },
-            { "VisibleName", user.VisibleName },
-            { "IsAdmin", user.IsAdmin.ToString() },
-        };
-    return Ok(returnDict);
+
+    return Ok(user.GetInfo());
   }
 
   [HttpGet("privateChannels/{page}")]
   [Authorize(Policy = "Authenticated")]
-  public ActionResult<JsonArray> GetPrivateChannels(int page)
+  public ActionResult<List<Channel>> GetPrivateChannels([FromRoute] int page)
   {
     User user = _accessor.GetCurrentUser(HttpContext)!;
-
-    JsonArray returnArr = [];
 
     int pageSize = configurationSection.GetValue<int>("ChannelCountPerRequest");
 
@@ -247,67 +173,38 @@ public partial class UserController(AppDbContext context, IConfiguration configu
                 .Take(pageSize),
         ];
 
-    foreach (Channel channel in channels)
-    {
-      Dictionary<string, string> dict = new()
-            {
-                { "Id", channel.Id },
-                { "Name", channel.Name },
-                { "LastMessage", channel.LastMessage.ToString() },
-            };
-      returnArr.Add(dict);
-    }
-
-    return Ok(returnArr);
+    return Ok(channels);
   }
 
   [HttpGet("servers")]
   [Authorize(Policy = "Authenticated")]
-  public ActionResult<JsonArray> GetChannels()
+  public ActionResult<List<Server>> GetChannels()
   {
     User user = _accessor.GetCurrentUser(HttpContext)!;
-
-    JsonArray returnArr = [];
-
 
     List<Server> servers = [
       .. _dbContext.Servers.Where(s => s.Members.Any(m => m.Id == user.Id))
     ];
 
-    foreach (Server server in servers)
-    {
-      Dictionary<string, string> dict = new(){
-        {"Id", server.Id},
-        {"Name", server.Name}
-      };
-    }
-
-    return Ok(returnArr);
+    return Ok(servers);
   }
 
   [HttpPost("edit")]
   [Authorize(Policy = "Authenticated")]
-  public ActionResult EditProfile(User user)
+  public ActionResult EditProfile([FromBody] UserControllerRecords.CreateUserRequest userRequest)
   {
     User sessionUser = _accessor.GetCurrentUser(HttpContext)!;
 
-    if (!UsernameRegex().IsMatch(user.Username))
-    {
-      return BadRequest("Invalid request: Username possess illegal characters");
-    }
-
     try
     {
-      sessionUser.Username = user.Username;
-      sessionUser.VisibleName = user.VisibleName;
-      sessionUser.Verifier = user.Verifier;
-      sessionUser.Salt = user.Salt;
+      sessionUser.Username = userRequest.Username;
+      sessionUser.VisibleName = userRequest.VisibleName;
+      sessionUser.Verifier = userRequest.Verifier;
+      sessionUser.Salt = userRequest.Salt;
       _dbContext.Users.Update(sessionUser);
       _dbContext.SaveChanges();
 
-      string jwt = _JWTBuilder.generateToken(_dbContext, user.Id, true);
-
-      return Ok(jwt);
+      return Ok();
     }
     catch (DbUpdateException ex)
     {
@@ -367,7 +264,4 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     _dbContext.SaveChanges();
     return Ok();
   }
-
-  [GeneratedRegex("^[a-z0-9]+$", RegexOptions.Compiled)]
-  private static partial Regex UsernameRegex();
 }

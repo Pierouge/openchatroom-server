@@ -4,7 +4,8 @@ using Microsoft.IdentityModel.Tokens;
 
 public interface IJWTBuilder
 {
-  string generateToken(AppDbContext dbContext, string userid, bool isAuthenticated = false, IEnumerable<Claim>? extraClaims = null, TimeSpan? lifetime = null);
+  // Returns either only the token if isAccess == false, or both the accessToken and the refreshToken
+  JWTBuilder.Result GenerateToken(AppDbContext dbContext, string userid, bool isAccess = false, IEnumerable<Claim>? extraClaims = null, TimeSpan? lifetime = null);
 }
 
 public class JWTBuilder : IJWTBuilder
@@ -26,16 +27,24 @@ public class JWTBuilder : IJWTBuilder
     defaultLifetime = TimeSpan.FromMinutes(minutes);
   }
 
-  public string generateToken(AppDbContext dbContext, string userid, bool isAuthenticated = false, IEnumerable<Claim>? extraClaims = null, TimeSpan? lifetime = null)
+  public Result GenerateToken(AppDbContext dbContext, string userid, bool isAuthenticated = false, IEnumerable<Claim>? extraClaims = null, TimeSpan? lifetime = null)
   {
     DateTime now = DateTime.UtcNow;
 
     string tokenId = IdGenerator.generateId();
+    string refreshTokenId = IdGenerator.generateId();
 
     List<Claim> claims =
     [
       new(JwtRegisteredClaimNames.Sub, userid),
       new(JwtRegisteredClaimNames.Jti, tokenId),
+      new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
+    ];
+
+    List<Claim> refreshClaims =
+    [
+      new(JwtRegisteredClaimNames.Sub, userid),
+      new(JwtRegisteredClaimNames.Jti, refreshTokenId),
       new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
     ];
 
@@ -45,7 +54,7 @@ public class JWTBuilder : IJWTBuilder
 
       User user = dbContext.Users.FirstOrDefault(u => u.Id == userid)!;
 
-      UserToken userToken = new(tokenId, user, now.Add(lifetime ?? defaultLifetime));
+      UserToken userToken = new(tokenId, refreshTokenId, user, now.Add(lifetime ?? defaultLifetime));
       dbContext.UserTokens.Add(userToken);
       dbContext.SaveChanges();
     }
@@ -60,6 +69,24 @@ public class JWTBuilder : IJWTBuilder
         expires: now.Add(lifetime ?? defaultLifetime),
         signingCredentials: new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256)
         );
-    return new JwtSecurityTokenHandler().WriteToken(token);
+
+    JwtSecurityTokenHandler handler = new();
+
+    if (isAuthenticated)
+    {
+      JwtSecurityToken refreshToken = new(
+          issuer: authority,
+          audience: audience,
+          claims: refreshClaims,
+          notBefore: now,
+          expires: now.Add(lifetime ?? defaultLifetime),
+          signingCredentials: new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256)
+          );
+      return new(handler.WriteToken(token), handler.WriteToken(refreshToken));
+    }
+
+    return new(handler.WriteToken(token), null);
   }
+
+  public record Result(string Token, string? RefreshToken);
 }

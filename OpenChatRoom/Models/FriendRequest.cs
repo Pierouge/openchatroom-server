@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 public class FriendRequest
 {
@@ -19,12 +20,16 @@ public class FriendRequest
   [StringLength(32)]
   [Column("author")]
   public string AuthorId { get; set; } = null!;
+
+  [JsonIgnore]
   public User Author { get; set; } = null!;
 
   [Required]
   [StringLength(32)]
   [Column("receiver")]
   public string ReceiverId { get; set; } = null!;
+
+  [JsonIgnore]
   public User Receiver { get; set; } = null!;
 
   [Required]

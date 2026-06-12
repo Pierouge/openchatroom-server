@@ -49,6 +49,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      no_cache: true
     restart: unless-stopped
     depends_on:
       db:
@@ -67,6 +68,7 @@ services:
       - Jwt__Audience=${JwtAudience}
       - Jwt__Issuer=${JwtIssuer}
       - Jwt__LifeTimeMinutes=${JwtLifetimeMinutes}
+      - Jwt__RefreshLifeTimeDays=${JwtRefreshLifetimeDays}
       # Encryptor
       - Encryptor__KeyFile=/app/message-key.txt
       # User Config info

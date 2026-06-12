@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 public class Channel
 {
@@ -16,14 +17,18 @@ public class Channel
   [StringLength(32)]
   [Column("server")]
   public string? ServerId { get; set; }
+
+  [JsonIgnore]
   public Server? Server { get; set; }
 
   [Required]
   [Column("lastMessage")]
   public DateTime LastMessage { get; set; } = DateTime.Now;
 
+  [JsonIgnore]
   public List<Message> Messages { get; } = [];
 
+  [JsonIgnore]
   public List<User> Members { get; } = [];
 }
 
