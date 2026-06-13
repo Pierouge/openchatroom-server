@@ -19,8 +19,6 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   private readonly UserAccessor _accessor = accessor;
 
   [HttpPost("create")]
-  [Consumes("application/json")]
-  [Produces("application/json")]
   [AllowAnonymous]
   public ActionResult<UserControllerRecords.CreateResult> Create([FromBody] UserControllerRecords.CreateUserRequest requestBody)
   {
@@ -65,8 +63,6 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   }
 
   [HttpPost("srp/1")]
-  [Consumes("application/json")]
-  [Produces("application/json")]
   [AllowAnonymous]
   public ActionResult<UserControllerRecords.SrpStep2Response> GetSRPInfo([FromBody] UserControllerRecords.SrpStep1Request requestBody) // Phase 2 of SRP Handshake
   {
@@ -100,8 +96,6 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   }
 
   [HttpPost("srp/2")]
-  [Consumes("application/json")]
-  [Produces("application/json")]
   [Authorize]
   public ActionResult<UserControllerRecords.SrpStep4Response> SendSRPM2([FromBody] string clientSessionProof) // Phase 4 of SRP
   {
@@ -140,9 +134,8 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   }
 
   [HttpGet("info/{username}")]
-  [Produces("application/json")]
   [Authorize(Policy = "Authenticated")]
-  public ActionResult<User.UserInfo> GetUserInfo(string username)
+  public ActionResult<User.UserInfo> GetUserInfo([FromRoute] string username)
   {
 
     if (string.IsNullOrEmpty(username))

@@ -11,7 +11,7 @@ public class KeyManager
   {
     byte[] keyBytes;
 
-    if (!File.Exists(path)) keyBytes = generateKey(path); // Check if file exists
+    if (!File.Exists(path)) keyBytes = GenerateKey(path); // Check if file exists
     else
     {
       string hex = File.ReadAllText(path).Trim();
@@ -23,21 +23,19 @@ public class KeyManager
       }
       catch (Exception) // Cannot convert from Hex or is not 32 bytes long
       {
-        keyBytes = generateKey(path);
+        keyBytes = GenerateKey(path);
       }
     }
 
     return new SymmetricSecurityKey(keyBytes);
   }
 
-  private static byte[] generateKey(string path)
+  private static byte[] GenerateKey(string path)
   {
     byte[] bytes = RandomNumberGenerator.GetBytes(32);
     string hex = Convert.ToHexString(bytes).ToLowerInvariant();
 
-    string? dir = Path.GetDirectoryName(path);
-    if (!Directory.Exists(dir))
-      Directory.CreateDirectory(dir!);
+    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
     File.WriteAllText(path, hex);
     return bytes;

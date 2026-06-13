@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -94,6 +95,14 @@ builder.Services.AddSingleton<ILoginStorage, LoginStorage>();
 builder.Services.AddHostedService<LoginStorageCleaner>();
 
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, CustomAuthorizationResultHandler>();
+
+// Add Data Protection to the app
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(builder.Configuration.GetSection("Encryptor").GetValue<string>("Directory")!))
+    .SetApplicationName("OpenChatRoom");
+
+// Add Encryptor classes for different purposes
+builder.Services.AddSingleton<MessageEncryptor>();
 
 WebApplication app = builder.Build();
 
