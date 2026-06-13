@@ -50,6 +50,7 @@ public class User
 
   // Set foreign keys here
   public List<Server> Servers { get; } = [];
+  public List<Server> OwnedServers { get; } = [];
   public List<Message> Messages { get; } = [];
   public List<Channel> PrivateChannels { get; } = [];
   public List<FriendRequest> SentRequests { get; } = [];

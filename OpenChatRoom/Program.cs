@@ -36,7 +36,7 @@ builder.Services.AddCors(options =>
 // Add the UserAccessor as a scoped service
 builder.Services.AddScoped<UserAccessor>();
 
-SymmetricSecurityKey jwtKey = KeyManager.getOrGenKey(builder.Configuration.GetSection("Jwt").GetValue<string>("KeyFile")!);
+SymmetricSecurityKey jwtKey = KeyManager.GetOrGenKey(builder.Configuration.GetSection("Jwt").GetValue<string>("KeyFile")!);
 builder.Services.AddSingleton(jwtKey);
 
 builder
@@ -79,12 +79,12 @@ builder.Services.AddSingleton<IJWTBuilder, JWTBuilder>();
 builder.Services.AddScoped<IAuthorizationHandler, JwtValidityHandler>();
 
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("Authenticated", policy =>
+    .AddPolicy(AuthorizationType.Authenticated, policy =>
           {
             policy.RequireAuthenticatedUser();
             policy.Requirements.Add(new JwtValidityRequirement(false));
           })
-    .AddPolicy("RefreshTokens", policy =>
+    .AddPolicy(AuthorizationType.RefreshTokens, policy =>
     {
       policy.RequireAuthenticatedUser();
       policy.Requirements.Add(new JwtValidityRequirement(true));
@@ -116,7 +116,7 @@ app.UseCors("AllowWasmApp");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// TODO: USE SignalR for messages (instead of websockets)
+app.MapHub<AppHub>("hub/app");
 
 app.MapControllers();
 app.Run();

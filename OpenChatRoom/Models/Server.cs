@@ -14,6 +14,13 @@ public class Server
   [Column("name")]
   public string Name { get; set; } = null!;
 
+  [StringLength(32)]
+  [Column("ownerId")]
+  public string? AuthorId { get; set; }
+
+  [JsonIgnore]
+  public User? Author { get; set; }
+
   [JsonIgnore]
   public List<User> Members { get; } = [];
 

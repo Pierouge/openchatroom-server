@@ -18,7 +18,7 @@ public class CheckController(IJWTBuilder JWTBuilder, UserAccessor accessor, AppD
 
   [HttpGet]
   [Route("auth")]
-  [Authorize(Policy = "Authenticated")]
+  [Authorize(Policy = AuthorizationType.Authenticated)]
   public ActionResult CheckUser()
   {
     return Ok();
@@ -26,7 +26,7 @@ public class CheckController(IJWTBuilder JWTBuilder, UserAccessor accessor, AppD
 
   [HttpGet]
   [Route("refresh")]
-  [Authorize(Policy = "RefreshTokens")]
+  [Authorize(Policy = AuthorizationType.RefreshTokens)]
   public ActionResult<TokenPair> RefreshToken()
   {
     User user = _accessor.GetCurrentUser(HttpContext)!;

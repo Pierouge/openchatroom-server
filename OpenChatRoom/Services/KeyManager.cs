@@ -7,7 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 
 public class KeyManager
 {
-  public static SymmetricSecurityKey getOrGenKey(string path)
+  public static SymmetricSecurityKey GetOrGenKey(string path)
   {
     byte[] keyBytes;
 

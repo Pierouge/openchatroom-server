@@ -113,7 +113,9 @@ CREATE TABLE IF NOT EXISTS `server_members` (
 CREATE TABLE IF NOT EXISTS `servers` (
   `id` varchar(32) NOT NULL,
   `name` varchar(64) NOT NULL,
+  `ownerId` varchar(32) DEFAULT NULL,
   PRIMARY KEY (`id`)
+  CONSTRAINT `server_owner` FOREIGN KEY (`ownerId`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

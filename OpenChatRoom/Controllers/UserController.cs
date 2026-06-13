@@ -134,7 +134,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   }
 
   [HttpGet("info/{username}")]
-  [Authorize(Policy = "Authenticated")]
+  [Authorize(Policy = AuthorizationType.Authenticated)]
   public ActionResult<User.UserInfo> GetUserInfo([FromRoute] string username)
   {
 
@@ -150,7 +150,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   }
 
   [HttpGet("privateChannels/{page}")]
-  [Authorize(Policy = "Authenticated")]
+  [Authorize(Policy = AuthorizationType.Authenticated)]
   public ActionResult<List<Channel>> GetPrivateChannels([FromRoute] int page)
   {
     User user = _accessor.GetCurrentUser(HttpContext)!;
@@ -170,7 +170,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   }
 
   [HttpGet("servers")]
-  [Authorize(Policy = "Authenticated")]
+  [Authorize(Policy = AuthorizationType.Authenticated)]
   public ActionResult<List<Server>> GetChannels()
   {
     User user = _accessor.GetCurrentUser(HttpContext)!;
@@ -183,7 +183,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   }
 
   [HttpPost("edit")]
-  [Authorize(Policy = "Authenticated")]
+  [Authorize(Policy = AuthorizationType.Authenticated)]
   public ActionResult EditProfile([FromBody] UserControllerRecords.CreateUserRequest userRequest)
   {
     User sessionUser = _accessor.GetCurrentUser(HttpContext)!;
@@ -214,7 +214,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   }
 
   [HttpDelete("terminateSession")]
-  [Authorize(Policy = "Authenticated")]
+  [Authorize(Policy = AuthorizationType.Authenticated)]
   public ActionResult TerminateSession()
   {
     string jti = HttpContext.User.FindFirst(JwtRegisteredClaimNames.Jti)!.Value!;
@@ -227,7 +227,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   }
 
   [HttpDelete("nukeSessions")]
-  [Authorize(Policy = "Authenticated")]
+  [Authorize(Policy = AuthorizationType.Authenticated)]
   public ActionResult NukeSessions()
   {
     User user = _accessor.GetCurrentUser(HttpContext)!;
@@ -241,7 +241,7 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   }
 
   [HttpDelete()]
-  [Authorize(Policy = "Authenticated")]
+  [Authorize(Policy = AuthorizationType.Authenticated)]
   public ActionResult RemoveUser(bool removeMessages)
   {
     User user = _accessor.GetCurrentUser(HttpContext)!;

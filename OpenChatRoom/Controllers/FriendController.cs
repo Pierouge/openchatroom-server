@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("friendRequest")]
-[Authorize(Policy = "Authenticated")]
+[Authorize(Policy = AuthorizationType.Authenticated)]
 public class FriendRequestController(AppDbContext context, UserAccessor accessor) : ControllerBase
 {
   private readonly AppDbContext _context = context;
@@ -39,9 +39,9 @@ public class FriendRequestController(AppDbContext context, UserAccessor accessor
     return Ok();
   }
 
-  [HttpGet("accept/{authorId}")]
+  [HttpPatch("{authorId}")]
   [Consumes("text/plain")]
-  public ActionResult AcceptFriendRequest(string authorId)
+  public ActionResult AcceptFriendRequest([FromRoute] string authorId)
   {
     User? user = _accessor.GetCurrentUser(HttpContext)!;
 
@@ -55,9 +55,9 @@ public class FriendRequestController(AppDbContext context, UserAccessor accessor
     return Ok();
   }
 
-  [HttpDelete("remove")]
+  [HttpDelete("{friendId}")]
   [Consumes("text/plain")]
-  public ActionResult RemoveFriendRequest(string friendId)
+  public ActionResult RemoveFriendRequest([FromRoute] string friendId)
   {
     User? user = _accessor.GetCurrentUser(HttpContext)!;
 
