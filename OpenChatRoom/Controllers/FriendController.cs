@@ -1,14 +1,17 @@
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("friendRequest")]
 [Authorize(Policy = AuthorizationType.Authenticated)]
-public class FriendRequestController(AppDbContext context, UserAccessor accessor) : ControllerBase
+public class FriendRequestController(AppDbContext context, UserAccessor accessor, IHubContext<AppHub> hubContext) : ControllerBase
 {
   private readonly AppDbContext _context = context;
   private readonly UserAccessor _accessor = accessor;
+  private readonly IHubContext<AppHub> _hubContext = hubContext;
 
   [HttpGet]
   [Produces("application/json")]
@@ -36,6 +39,10 @@ public class FriendRequestController(AppDbContext context, UserAccessor accessor
     _context.FriendRequests.Add(friendRequest);
     _context.SaveChanges();
 
+    // Inform connected clients of the new request
+    _hubContext.Clients.Group($"user:{author.Id}").SendAsync(AppHubRecords.ClientMethods.FriendStatusChanged, friendRequest);
+    _hubContext.Clients.Group($"user:{receiver.Id}").SendAsync(AppHubRecords.ClientMethods.FriendStatusChanged, friendRequest);
+
     return Ok();
   }
 
@@ -50,9 +57,22 @@ public class FriendRequestController(AppDbContext context, UserAccessor accessor
     if (friendRequest == null) return NotFound("The request was not found");
 
     friendRequest.IsAccepted = true;
-    _context.FriendRequests.Update(friendRequest);
-    _context.SaveChanges();
-    return Ok();
+
+    try
+    {
+      _context.FriendRequests.Update(friendRequest);
+      _context.SaveChanges();
+
+      // Inform connected clients of the new request
+      _hubContext.Clients.Group($"user:{friendRequest.AuthorId}").SendAsync(AppHubRecords.ClientMethods.FriendStatusChanged, friendRequest);
+      _hubContext.Clients.Group($"user:{friendRequest.ReceiverId}").SendAsync(AppHubRecords.ClientMethods.FriendStatusChanged, friendRequest);
+
+      return Ok();
+    }
+    catch (DbUpdateConcurrencyException)
+    {
+      return StatusCode(StatusCodes.Status412PreconditionFailed, "This friendRequest is already being edited");
+    }
   }
 
   [HttpDelete("{friendId}")]
@@ -67,6 +87,10 @@ public class FriendRequestController(AppDbContext context, UserAccessor accessor
 
     _context.FriendRequests.Remove(friendRequest);
     _context.SaveChanges();
+
+    // Inform connected clients of the end of the friendship
+    _hubContext.Clients.Group($"user:{friendRequest.AuthorId}").SendAsync(AppHubRecords.ClientMethods.FriendRemoved, friendRequest.ReceiverId);
+    _hubContext.Clients.Group($"user:{friendRequest.ReceiverId}").SendAsync(AppHubRecords.ClientMethods.FriendRemoved, friendRequest.AuthorId);
 
     return Ok();
   }

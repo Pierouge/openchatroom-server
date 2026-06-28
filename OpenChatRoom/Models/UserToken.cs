@@ -36,4 +36,9 @@ public class UserToken
   [Required]
   [Column("validTime")]
   public DateTime ValidTime { get; set; }
+
+  [Timestamp]
+  [JsonIgnore]
+  [Column("RowVersion")]
+  public byte[] RowVersion { get; set; } = [];
 }

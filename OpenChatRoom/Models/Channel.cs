@@ -30,5 +30,11 @@ public class Channel
 
   [JsonIgnore]
   public List<User> Members { get; } = [];
+
+  [Timestamp]
+  [JsonIgnore]
+  [Column("RowVersion")]
+  public byte[] RowVersion { get; set; } = [];
+
 }
 

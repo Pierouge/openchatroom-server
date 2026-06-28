@@ -137,7 +137,6 @@ public partial class UserController(AppDbContext context, IConfiguration configu
   [Authorize(Policy = AuthorizationType.Authenticated)]
   public ActionResult<User.UserInfo> GetUserInfo([FromRoute] string username)
   {
-
     if (string.IsNullOrEmpty(username))
       return BadRequest("Missing a userid");
 
@@ -199,13 +198,17 @@ public partial class UserController(AppDbContext context, IConfiguration configu
 
       return Ok();
     }
+    catch (DbUpdateConcurrencyException)
+    {
+      return StatusCode(StatusCodes.Status412PreconditionFailed, "This user is already being edited");
+    }
     catch (DbUpdateException ex)
     {
       if (ex.InnerException is MySqlConnector.MySqlException mySqlEx)
       {
         if (mySqlEx.Number == 1062) // Error 1062 is the DUPLICATE exception error in MySQL
         {
-          return Conflict("This user already exists");
+          return Conflict("This username is already taken");
         }
         return BadRequest($"SQL Error {mySqlEx.Number}: {mySqlEx.Message}");
       }
@@ -240,18 +243,13 @@ public partial class UserController(AppDbContext context, IConfiguration configu
     return Ok();
   }
 
-  [HttpDelete()]
+  [HttpDelete]
   [Authorize(Policy = AuthorizationType.Authenticated)]
-  public ActionResult RemoveUser(bool removeMessages)
+  public ActionResult RemoveUser()
   {
     User user = _accessor.GetCurrentUser(HttpContext)!;
 
     _dbContext.Users.Remove(user);
-    if (removeMessages)
-    {
-      List<Message> messages = [.. _dbContext.Messages.Where(m => m.Author == user)];
-      _dbContext.RemoveRange(messages);
-    }
     _dbContext.SaveChanges();
     return Ok();
   }

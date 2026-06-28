@@ -16,14 +16,19 @@ public class Server
 
   [StringLength(32)]
   [Column("ownerId")]
-  public string? AuthorId { get; set; }
+  public string? OwnerId { get; set; }
 
   [JsonIgnore]
-  public User? Author { get; set; }
+  public User? Owner { get; set; }
 
   [JsonIgnore]
   public List<User> Members { get; } = [];
 
   [JsonIgnore]
   public List<Channel> Channels { get; } = [];
+
+  [Timestamp]
+  [JsonIgnore]
+  [Column("RowVersion")]
+  public byte[] RowVersion { get; set; } = [];
 }

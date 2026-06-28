@@ -39,4 +39,9 @@ public class Message
 
   [JsonIgnore]
   public Channel Channel { get; set; } = null!;
+
+  [Timestamp]
+  [JsonIgnore]
+  [Column("RowVersion")]
+  public byte[] RowVersion { get; set; } = [];
 }

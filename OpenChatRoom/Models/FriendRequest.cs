@@ -35,4 +35,9 @@ public class FriendRequest
   [Required]
   [Column("isAccepted")]
   public bool IsAccepted { get; set; } = false;
+
+  [Timestamp]
+  [JsonIgnore]
+  [Column("RowVersion")]
+  public byte[] RowVersion { get; set; } = [];
 }

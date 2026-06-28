@@ -48,6 +48,10 @@ public class User
   [Column("isAdmin")]
   public bool IsAdmin { get; set; } = false;
 
+  [Timestamp]
+  [Column("RowVersion")]
+  public byte[] RowVersion { get; set; } = [];
+
   // Set foreign keys here
   public List<Server> Servers { get; } = [];
   public List<Server> OwnedServers { get; } = [];

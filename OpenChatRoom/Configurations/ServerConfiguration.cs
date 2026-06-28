@@ -6,7 +6,7 @@ public class ServerConfiguration : IEntityTypeConfiguration<Server>
   {
     builder.ToTable("servers");
     builder.HasKey(u => u.Id);
-    builder.HasOne(e => e.Author).WithMany(u => u.OwnedServers).HasForeignKey(e => e.AuthorId);
+    builder.HasOne(e => e.Owner).WithMany(u => u.OwnedServers).HasForeignKey(e => e.OwnerId);
     builder.HasMany(e => e.Members).WithMany(u => u.Servers)
     .UsingEntity("server_members",
     r => r.HasOne(typeof(User)).WithMany().HasForeignKey("user").HasPrincipalKey(nameof(User.Id)),

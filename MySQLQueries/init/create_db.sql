@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS `channels` (
   `name` varchar(64) NOT NULL,
   `server` varchar(32) DEFAULT NULL,
   `lastMessage` datetime NOT NULL,
+  `RowVersion` BINARY(8) NOT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_channels_1_idx` (`server`),
   CONSTRAINT `channel_server` FOREIGN KEY (`server`) REFERENCES `servers` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -44,6 +45,7 @@ CREATE TABLE IF NOT EXISTS `friends` (
   `author` varchar(32) NOT NULL,
   `receiver` varchar(32) NOT NULL,
   `isAccepted` tinyint(1) NOT NULL DEFAULT '0',
+  `RowVersion` BINARY(8) NOT NULL,
   PRIMARY KEY (`author`,`receiver`),
   KEY `friend_receiver_idx` (`receiver`),
   CONSTRAINT `friend_author` FOREIGN KEY (`author`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -64,6 +66,7 @@ CREATE TABLE IF NOT EXISTS `messages` (
   `isModified` tinyint(1) NOT NULL DEFAULT '0',
   `author` varchar(32) NOT NULL,
   `channel` varchar(32) NOT NULL,
+  `RowVersion` BINARY(8) NOT NULL,
   PRIMARY KEY (`id`),
   KEY `message_author_idx` (`author`),
   KEY `message_channel_idx` (`channel`),
@@ -114,6 +117,7 @@ CREATE TABLE IF NOT EXISTS `servers` (
   `id` varchar(32) NOT NULL,
   `name` varchar(64) NOT NULL,
   `ownerId` varchar(32) DEFAULT NULL,
+  `RowVersion` BINARY(8) NOT NULL,
   PRIMARY KEY (`id`)
   CONSTRAINT `server_owner` FOREIGN KEY (`ownerId`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -130,6 +134,7 @@ CREATE TABLE IF NOT EXISTS `user_tokens` (
   `refreshId` varchar(32) NOT NULL,
   `userId` varchar(32) NOT NULL,
   `validTime` datetime NOT NULL,
+  `RowVersion` BINARY(8) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id_UNIQUE` (`id`),
   KEY `tokens_userid_idx` (`userId`),
@@ -150,6 +155,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `verifier` varchar(512) NOT NULL,
   `salt` varchar(512) NOT NULL,
   `isAdmin` tinyint(1) NOT NULL DEFAULT '0',
+  `RowVersion` BINARY(8) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `username_UNIQUE` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
